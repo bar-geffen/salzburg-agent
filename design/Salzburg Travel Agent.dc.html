@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #EDE7DE; font-family: "Source Sans 3", Helvetica, sans-serif; }
+  a { color: #A9542F; text-decoration: none; }
+  a:hover { color: #7E3D22; text-decoration: underline; }
+  input, textarea, button { font-family: inherit; }
+  *::placeholder { color: #756C5E; }
+</style>
+</helmet>
+
+<section style="padding: 56px 56px 80px; display: flex; flex-direction: column; gap: 40px; background: #EDE7DE; color: #1F1B16;">
+
+  <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;">
+    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #A9542F; border: 1px solid #D9CFC0; padding: 4px 8px; border-radius: 4px;">1a</span>
+    <h1 style="margin: 0; font-family: 'Literata', Georgia, serif; font-size: 40px; font-weight: 400; letter-spacing: -0.01em;">Salzburg travel agent</h1>
+    <p style="margin: 0; font-size: 15px; color: #6B635A;">Chat-first. Three tabs, one thumb. 11 nights · Bar &amp; Ori &amp; toddler.</p>
+  </div>
+
+  <div style="display: flex; gap: 48px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" style="width:402px;height:860px" hint-size="402px,860px">
+        <div style="height: 100%; display: flex; flex-direction: column; background: #FAF7F2;">
+
+          <div style="padding: 60px 20px 12px; display: flex; flex-direction: column; gap: 14px; background: #FAF7F2; border-bottom: 1px solid #EFE7DA;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-family: 'Literata', Georgia, serif; font-size: 24px; line-height: 1;">Salzburg</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">Day 4 of 11 · Thu 20 Aug</span>
+            </div>
+            <div style="display: flex; gap: 4px; background: #F0EAE0; border-radius: 999px; padding: 4px;"><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: #FFFFFF; color: #1F1B16; font-size: 15px; font-weight: 600; box-shadow: 0 1px 2px rgba(31,27,22,0.08);">Chat</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Agenda</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Saved</button></div>
+          </div>
+
+          <div style="flex: 1; overflow: auto; padding: 22px 20px 12px; display: flex; flex-direction: column; gap: 26px;">
+
+            <div style="display: flex; justify-content: center;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">08:41</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C7A63;">Ori</span>
+              <div style="max-width: 84%; background: #E9EFE9; border-radius: 20px 20px 6px 20px; padding: 13px 16px; font-size: 17px; line-height: 1.45;">It&rsquo;s raining till noon. Rework today so Noa naps indoors?</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; max-width: 92%;">
+              <p style="margin: 0; font-family: 'Literata', Georgia, serif; font-size: 21px; line-height: 1.25;">Rainy-morning version of Thursday</p>
+              <p style="margin: 0; font-size: 17px; line-height: 1.5; color: #3A342C;">I moved the fountains to Saturday &mdash; they&rsquo;re outdoors and half the fun is getting soaked on purpose.</p>
+              <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 4px;">
+                <div style="display: flex; gap: 14px;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; padding-top: 3px; min-width: 46px;">09:30</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 17px; font-weight: 600;">Haus der Natur</span>
+                    <span style="font-size: 15px; color: #6B635A; line-height: 1.4;">Toddler water room on level 2. Strollers fine, café inside.</span>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 14px;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; padding-top: 3px; min-width: 46px;">12:15</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 17px; font-weight: 600;">Lunch at Café Tomaselli</span>
+                    <span style="font-size: 15px; color: #6B635A; line-height: 1.4;">6 min walk. Saved by Bar on Tuesday.</span>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 14px;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; padding-top: 3px; min-width: 46px;">13:30</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 17px; font-weight: 600;">Nap at the apartment</span>
+                    <span style="font-size: 15px; color: #6B635A; line-height: 1.4;">Sun is forecast to break around 15:00.</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; padding-top: 6px;">
+                <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid #DED4C4; background: #FFFFFF; font-size: 15px; font-weight: 500; color: #1F1B16;">Save to itinerary</button>
+                <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid transparent; background: #F0EAE0; font-size: 15px; font-weight: 500; color: #6B635A;">Keep as is</button>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F;">Bar</span>
+              <div style="max-width: 84%; background: #F6EDE6; border-radius: 20px 20px 6px 20px; padding: 13px 16px; font-size: 17px; line-height: 1.45;">Perfect. Is Tomaselli ok with a stroller?</div>
+            </div>
+
+            <div style="display: flex; gap: 6px; align-items: center; padding-left: 2px;">
+              <span style="width: 7px; height: 7px; border-radius: 999px; background: #C9BFB0;"></span>
+              <span style="width: 7px; height: 7px; border-radius: 999px; background: #DCD3C6;"></span>
+              <span style="width: 7px; height: 7px; border-radius: 999px; background: #EAE2D6;"></span>
+            </div>
+          </div>
+
+          <div style="padding: 10px 16px 34px; background: #FAF7F2; border-top: 1px solid #EFE7DA; display: flex; align-items: flex-end; gap: 10px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+              <div style="display: flex; gap: 6px; padding-left: 4px;">
+                <button style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid #E4DBCC; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F;">Bar</button>
+                <button style="min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid transparent; background: #F0EAE0; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6B635A;">Ori</button>
+              </div>
+              <input placeholder="Ask about today&hellip;" style="width: 100%; box-sizing: border-box; min-height: 52px; padding: 0 18px; border-radius: 26px; border: 1px solid #E4DBCC; background: #FFFFFF; font-size: 17px; color: #1F1B16; outline: none;">
+            </div>
+            <button style="width: 52px; height: 52px; flex: none; border-radius: 999px; border: none; background: #A9542F; color: #FFFFFF; font-size: 20px; line-height: 1;">&uarr;</button>
+          </div>
+        </div>
+      </x-import>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">Screen 1 &mdash; Chat</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" style="width:402px;height:860px" hint-size="402px,860px">
+        <div style="height: 100%; display: flex; flex-direction: column; background: #FAF7F2;">
+          <div style="padding: 60px 20px 12px; display: flex; flex-direction: column; gap: 14px; background: #FAF7F2; border-bottom: 1px solid #EFE7DA;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-family: 'Literata', Georgia, serif; font-size: 24px; line-height: 1;">Agenda</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">Day 4 of 11 · Thu 20 Aug</span>
+            </div>
+            <div style="display: flex; gap: 4px; background: #F0EAE0; border-radius: 999px; padding: 4px;"><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Chat</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: #FFFFFF; color: #1F1B16; font-size: 15px; font-weight: 600; box-shadow: 0 1px 2px rgba(31,27,22,0.08);">Agenda</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Saved</button></div>
+          </div><div style="flex: 1; overflow: auto; padding: 20px 20px 44px; display: flex; flex-direction: column; gap: 30px;">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Today</span>
+              <div style="background: #F4EFE7; border: 1px solid transparent; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px;"><span style="font-family: 'Literata', Georgia, serif; font-size: 20px;">Thu 20 Aug <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F;">today</span></span><div style="display: flex; gap: 14px; align-items: flex-start;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; min-width: 46px; padding-top: 2px;">13:30</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-size: 17px; font-weight: 600;">Nap at the apartment</span>
+                    <span style="font-size: 14px; color: #6B635A; line-height: 1.4;">Sun forecast to break around 15:00</span>
+                  </div>
+                </div><div style="display: flex; gap: 14px; align-items: flex-start;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; min-width: 46px; padding-top: 2px;">16:00</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-size: 17px; font-weight: 600;">Salzach river ferry</span>
+                    <span style="font-size: 14px; color: #6B635A; line-height: 1.4;">2 adults + 1 child · Makartsteg dock</span>
+                  </div>
+                </div><div style="display: flex; gap: 8px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">+ Add to today</button></div></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Next up</span><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">+ Add</button></div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px;"><span style="font-family: 'Literata', Georgia, serif; font-size: 20px;">Sat 22 Aug</span><div style="display: flex; gap: 14px; align-items: flex-start;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; min-width: 46px; padding-top: 2px;">09:00</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-size: 17px; font-weight: 600;">Hohensalzburg funicular</span>
+                    <span style="font-size: 14px; color: #6B635A; line-height: 1.4;">Timed entry · tickets in the folder</span>
+                  </div>
+                </div><div style="display: flex; gap: 14px; align-items: flex-start;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; min-width: 46px; padding-top: 2px;">14:30</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-size: 17px; font-weight: 600;">Hellbrunn trick fountains</span>
+                    <span style="font-size: 14px; color: #6B635A; line-height: 1.4;">Moved from Thursday · bring dry clothes</span>
+                  </div>
+                </div></div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px;"><span style="font-family: 'Literata', Georgia, serif; font-size: 20px;">Mon 24 Aug</span><div style="display: flex; gap: 14px; align-items: flex-start;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A9542F; min-width: 46px; padding-top: 2px;">08:00</span>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-size: 17px; font-weight: 600;">Salzkammergut day trip</span>
+                    <span style="font-size: 14px; color: #6B635A; line-height: 1.4;">Rental pickup at Mirabellplatz</span>
+                  </div>
+                </div></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Stay</span><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button></div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 6px;">
+                <span style="font-family: 'Literata', Georgia, serif; font-size: 20px; line-height: 1.2;">Altstadt Apartment</span>
+                <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Steingasse 14 · Door code 4821</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">Checked in 17 Aug · out Fri 28 Aug, 10:00</span>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Flights</span>
+              <div style="background: #F4EFE7; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px;">
+                  <span style="font-size: 17px; font-weight: 600;">SZG &rarr; TLV</span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #756C5E;">LY 376</span>
+                </div>
+                <span style="font-size: 14px; color: #6B635A;">Fri 28 Aug · 11:20 &ndash; 16:05 · in 8 days</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">Outbound LY 375 · flown 17 Aug</span>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Journal</span><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">See all</button></div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">Wed 19 Aug · drafted from your chat</span>
+                <span style="font-family: 'Literata', Georgia, serif; font-size: 18px; line-height: 1.45; color: #3A342C;">Noa fell asleep halfway up the Mönchsberg and woke up to the whole city. Ate two pretzels on the way down.</span>
+                <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Keep</button></div>
+              </div>
+            </div></div>
+        </div>
+      </x-import>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">Screen 2 &mdash; Agenda</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ deviceW }}" height="{{ deviceH }}" style="width:402px;height:860px" hint-size="402px,860px">
+        <div style="height: 100%; display: flex; flex-direction: column; background: #FAF7F2;">
+          <div style="padding: 60px 20px 12px; display: flex; flex-direction: column; gap: 14px; background: #FAF7F2; border-bottom: 1px solid #EFE7DA;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <span style="font-family: 'Literata', Georgia, serif; font-size: 24px; line-height: 1;">Saved</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">2 new · 9 kept</span>
+            </div>
+            <div style="display: flex; gap: 4px; background: #F0EAE0; border-radius: 999px; padding: 4px;"><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Chat</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: transparent; color: #6B635A; font-size: 15px; font-weight: 500;">Agenda</button><button style="flex: 1; min-height: 44px; border: none; border-radius: 999px; background: #FFFFFF; color: #1F1B16; font-size: 15px; font-weight: 600; box-shadow: 0 1px 2px rgba(31,27,22,0.08);">Saved</button></div>
+          </div><div style="padding: 14px 20px 12px; display: flex; gap: 8px; overflow: auto; border-bottom: 1px solid #EFE7DA;"><button style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid transparent; background: #1F1B16; color: #FAF7F2; font-size: 15px; font-weight: 500;">All</button><button style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #E4DBCC; background: #FFFFFF; color: #6B635A; font-size: 15px; font-weight: 500;">Food</button><button style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #E4DBCC; background: #FFFFFF; color: #6B635A; font-size: 15px; font-weight: 500;">Activity</button><button style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #E4DBCC; background: #FFFFFF; color: #6B635A; font-size: 15px; font-weight: 500;">Day trip</button></div><div style="flex: 1; overflow: auto; padding: 20px 20px 44px; display: flex; flex-direction: column; gap: 30px;">
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Caught in chat · 2 new</span>
+                <button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Keep both</button>
+              </div>
+              <div style="background: #F4EFE7; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Sacher terrace</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F; background: #F6EDE6; padding: 4px 8px; border-radius: 999px;">Food</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Ori asked about cake with a view — this is the one the agent answered with.</span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From this morning&rsquo;s chat, 08:44</span>
+                  <div style="display: flex; gap: 8px; padding-top: 4px;">
+                    <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: none; background: #A9542F; color: #FFFFFF; font-size: 15px; font-weight: 500;">Keep</button>
+                    <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid #DED4C4; background: #FFFFFF; color: #6B635A; font-size: 15px; font-weight: 500;">Not this one</button>
+                  </div>
+                </div>
+              <div style="background: #F4EFE7; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Haus der Natur</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4E6B55; background: #E9EFE9; padding: 4px 8px; border-radius: 999px;">Activity</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Toddler water room, level 2. Already on today&rsquo;s plan.</span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From this morning&rsquo;s chat, 08:41</span>
+                  <div style="display: flex; gap: 8px; padding-top: 4px;">
+                    <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: none; background: #A9542F; color: #FFFFFF; font-size: 15px; font-weight: 500;">Keep</button>
+                    <button style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid #DED4C4; background: #FFFFFF; color: #6B635A; font-size: 15px; font-weight: 500;">Not this one</button>
+                  </div>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Kept</span>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Café Tomaselli</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F; background: #F6EDE6; padding: 4px 8px; border-radius: 999px;">Food</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Rainy-morning cake stop. Stroller room upstairs.</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px;">
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From Bar's chat · Tue</span>
+                    <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Remove</button></div>
+                  </div>
+                </div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Bärenwirt</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #A9542F; background: #F6EDE6; padding: 4px 8px; border-radius: 999px;">Food</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Early dinner, 17:30. High chairs, terrace over the river.</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px;">
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From Ori's chat · Mon</span>
+                    <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Remove</button></div>
+                  </div>
+                </div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Mirabell playground</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4E6B55; background: #E9EFE9; padding: 4px 8px; border-radius: 999px;">Activity</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Shaded, fenced, 8 min from the apartment.</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px;">
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">Agent suggestion · Tue</span>
+                    <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Remove</button></div>
+                  </div>
+                </div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Untersberg cable car</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #4E6B55; background: #E9EFE9; padding: 4px 8px; border-radius: 999px;">Activity</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">Clear-morning only. Carrier, not the stroller.</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px;">
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From Bar's chat · today</span>
+                    <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Remove</button></div>
+                  </div>
+                </div>
+              <div style="background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 7px;">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+                    <span style="font-size: 17px; font-weight: 600;">Hallstatt</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #7A6A4E; background: #F2EDDF; padding: 4px 8px; border-radius: 999px;">Day trip</span>
+                  </div>
+                  <span style="font-size: 15px; color: #6B635A; line-height: 1.45;">1h20 drive. Leave before 08:00 to beat the buses.</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px;">
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #756C5E;">From Ori's chat · Sun</span>
+                    <div style="display: flex; gap: 4px;"><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Edit</button><button style="min-height: 44px; padding: 0 4px; border: none; background: none; font-size: 15px; font-weight: 500; color: #A9542F;">Remove</button></div>
+                  </div>
+                </div>
+            </div>
+            </div>
+            <button style="min-height: 52px; border-radius: 26px; border: 1px dashed #D5C9B6; background: transparent; color: #A9542F; font-size: 16px; font-weight: 500;">+ Add one yourself</button></div>
+        </div>
+      </x-import>
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #756C5E;">Screen 3 &mdash; Saved</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 32px; width: 560px; background: #FAF7F2; border: 1px solid #E2D9CA; border-radius: 24px; padding: 36px;">
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #A9542F;">Handoff</span>
+        <h2 style="margin: 0; font-family: 'Literata', Georgia, serif; font-size: 30px; font-weight: 400;">Palette, type &amp; patterns</h2>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Color</span>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #FAF7F2; border: 1px solid #E2D9CA;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">paper<br>#FAF7F2</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #F4EFE7;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">sand<br>#F4EFE7</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #EFE7DA;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">line<br>#EFE7DA</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E2D9CA;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">card<br>#FFFFFF</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #1F1B16;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">ink<br>#1F1B16</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #6B635A;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">muted<br>#6B635A</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #A9542F;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">accent / Bar<br>#A9542F</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px;"><div style="height: 56px; border-radius: 12px; background: #4E6B55;"></div><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #6B635A;">green / Ori<br>#4E6B55</span></div>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6B635A;">Accent is used only for time, links, and one primary action per screen. Bubble tints are the 8% versions: <span style="font-family: 'IBM Plex Mono', monospace;">#F6EDE6</span> (Bar) and <span style="font-family: 'IBM Plex Mono', monospace;">#E9EFE9</span> (Ori). Body 12.4:1, muted detail 5.5:1, mono labels 4.8:1 — all pass AA in direct sun.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Type</span>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Serif 24 / 1.0</span><span style="font-family: 'Literata', Georgia, serif; font-size: 23px;">Screen title</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Serif 21 / 1.25</span><span style="font-family: 'Literata', Georgia, serif; font-size: 21px;">Agent answer heading</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Sans 17 / 1.5</span><span style="font-size: 17px;">Body &amp; message text</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Sans 17 / 600</span><span style="font-size: 17px; font-weight: 600;">Item name</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Sans 15 / 1.45</span><span style="font-size: 15px; color: #6B635A;">Secondary detail</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px;"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #756C5E; min-width: 128px;">Mono 11 / .14em caps</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Section label</span></div>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6B635A;">Literata for titles and journal prose · Source Sans 3 for everything read fast · IBM Plex Mono for times, labels, flight numbers. Nothing below 14px except mono caps labels.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #756C5E;">Patterns</span>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px;">
+          <span style="font-size: 15px; font-weight: 600;">Message</span>
+          <span style="font-size: 14px; color: #6B635A; line-height: 1.5;">Agent: no bubble, full width, serif heading + mono time column. User: tinted bubble, right-aligned, radius 20/20/6/20, mono name tag above. Sender is the tint, not an avatar.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px;">
+          <span style="font-size: 15px; font-weight: 600;">Day card (Agenda)</span>
+          <span style="font-size: 14px; color: #6B635A; line-height: 1.5;">White card, 1px line, radius 18, padding 18. Serif date header, then rows of mono time (46px column) + name + one detail line. Today gets a mono accent tag and a sand tint; future days are white.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px;">
+          <span style="font-size: 15px; font-weight: 600;">Auto journal</span>
+          <span style="font-size: 14px; color: #6B635A; line-height: 1.5;">The agent drafts one entry per day from that day's chat and shows it under Agenda with a mono "drafted from your chat" line. Two 44px actions: Edit (opens the text in place) or Keep. Nothing is ever posted without appearing here first.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px;">
+          <span style="font-size: 15px; font-weight: 600;">Recommendation card</span>
+          <span style="font-size: 14px; color: #6B635A; line-height: 1.5;">Same shell as day card. Name left, category pill right (food / activity / day-trip = terracotta / green / ochre), one line of why-it-was-saved, then provenance ("From Bar&rsquo;s chat · Tue") + Edit / Remove. Nothing is typed in by hand: the agent captures places as they come up in chat and they land sand-tinted at the top of Saved with Keep / Not this one, then settle into Kept as white cards.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; background: #FFFFFF; border: 1px solid #EFE7DA; border-radius: 18px; padding: 18px;">
+          <span style="font-size: 15px; font-weight: 600;">Form input</span>
+          <input placeholder="Place or activity" style="width: 100%; box-sizing: border-box; min-height: 52px; padding: 0 16px; border-radius: 14px; border: 1px solid #E4DBCC; background: #FAF7F2; font-size: 17px; color: #1F1B16; outline: none;">
+          <div style="display: flex; gap: 10px;">
+            <button style="min-height: 48px; padding: 0 20px; border-radius: 999px; border: none; background: #A9542F; color: #FFFFFF; font-size: 16px; font-weight: 500;">Save</button>
+            <button style="min-height: 48px; padding: 0 20px; border-radius: 999px; border: 1px solid #DED4C4; background: #FFFFFF; color: #6B635A; font-size: 16px; font-weight: 500;">Cancel</button>
+          </div>
+          <span style="font-size: 14px; color: #6B635A; line-height: 1.5;">52px fields, 48px buttons, 44px minimum for any tap target. Labels sit above, never inside. Editing happens in place in the panel — no modals.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      deviceW: 402,
+      deviceH: 860,
+      showChat: () => {},
+      showTrip: () => {},
+    };
+  }
+}
+</script>
+</body>
+</html>

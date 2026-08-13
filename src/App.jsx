@@ -8,6 +8,7 @@ function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [sender, setSender] = useState(() => localStorage.getItem('sender') || '')
   const messagesEndRef = useRef(null)
 
@@ -31,15 +32,21 @@ function App() {
 
     const userMessage = { role: 'user', sender, content: input.trim() }
 
-    const { data: savedMsg } = await supabase
+    const { data: savedMsg, error: saveError } = await supabase
       .from('messages')
       .insert(userMessage)
       .select()
       .single()
 
+    if (saveError || !savedMsg) {
+      setError("Couldn't save your message. Check your connection and try again.")
+      return
+    }
+
     const updatedMessages = [...messages, savedMsg]
     setMessages(updatedMessages)
     setInput('')
+    setError('')
     setLoading(true)
 
     try {
@@ -54,16 +61,35 @@ function App() {
       })
 
       const data = await response.json()
-      const assistantMessage = { role: 'assistant', sender: 'Agent', content: data.message }
-      const { data: savedAssistant } = await supabase
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Request failed (${response.status})`)
+      }
+
+      // api/chat.js is a pass-through: it returns Claude's raw content blocks, not
+      // a flat string. Render the text blocks; tool_use blocks are handled by the
+      // tool loop (not built yet — see session1-gaps.md).
+      const text = (data.content ?? [])
+        .filter(block => block.type === 'text')
+        .map(block => block.text)
+        .join('\n\n')
+        .trim()
+
+      if (!text) throw new Error('The agent returned an empty response.')
+
+      const assistantMessage = { role: 'assistant', sender: 'Agent', content: text }
+      const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
         .insert(assistantMessage)
         .select()
         .single()
 
+      if (assistantError || !savedAssistant) throw new Error("Couldn't save the reply.")
+
       setMessages(prev => [...prev, savedAssistant])
-    } catch (error) {
-      console.error('Failed to send message:', error)
+    } catch (err) {
+      console.error('Failed to send message:', err)
+      setError(err.message || 'Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }
@@ -111,6 +137,7 @@ function App() {
             <div className="message-content loading">Thinking...</div>
           </div>
         )}
+        {error && <div className="message-error">{error}</div>}
         <div ref={messagesEndRef} />
       </div>
 

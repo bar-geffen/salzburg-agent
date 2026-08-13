@@ -84,6 +84,14 @@ body {
   font-style: italic;
 }
 
+.message-error {
+  color: #a9542f;
+  font-size: 15px;
+  text-align: center;
+  padding: 12px 20px;
+  line-height: 1.45;
+}
+
 .message-content p { margin-bottom: 8px; }
 .message-content p:last-child { margin-bottom: 0; }
 .message-content h3 { font-size: 14px; margin: 8px 0 4px; }
