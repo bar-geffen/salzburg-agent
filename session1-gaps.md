@@ -4,6 +4,9 @@ What `salzburg-app-session1-spec.md` promises that the code doesn't do yet. Orde
 by how much else depends on it. Items marked **Decision** need a human answer;
 the rest are just build work.
 
+**Resolved so far:** gaps 2 (pending state), 3 (tool-block persistence), and 7 (RLS)
+are done — see `supabase-migration-001.sql`. Remaining: 1, 4, 5, 6.
+
 ---
 
 ## 1. Agent learning has no tools
@@ -33,48 +36,33 @@ current models are conservative about reaching for tools, and the trigger condit
 is what drives the should-call rate. Give each one a couple of the examples from the
 spec's "Agent learning" section.
 
-## 2. The schema has no pending state, but the design requires one
+## 2. Pending state — DONE (migration 001)
 
 `design-spec.md` is explicit: a captured recommendation lands sand-tinted under
 `Caught in chat` with **Keep / Not this one** before it becomes a kept card, and the
 auto-drafted journal entry shows **Edit / Keep** — *"nothing is ever posted without
 appearing here first."*
 
-The current schema can't express that. `recommendations` has no status column and
-`journal` has no draft state, so anything a tool writes is immediately live.
+The original schema couldn't express that — anything a tool wrote went live instantly.
 
-Add to `supabase-schema.sql`:
+**Resolved:** `recommendations.status` (`pending` / `kept` / `rejected`) and
+`journal.status` (`draft` / `kept`) now exist. `build-system-prompt.js` feeds the
+agent `kept` recommendations under **Saved Recommendations**, `pending` ones under a
+separate **Awaiting Review** heading that tells it not to treat them as saved, and
+excludes `rejected` entirely so a declined suggestion never comes back. Journal is
+`kept` only.
 
-```sql
-alter table recommendations
-  add column status text not null default 'pending'
-  check (status in ('pending', 'kept', 'rejected'));
+The UI for acting on these — Keep / Not this one, Edit / Keep — is part of gap 6.
 
-alter table journal
-  add column status text not null default 'draft'
-  check (status in ('draft', 'kept'));
-```
-
-Then `build-system-prompt.js` should feed the agent only `kept` recommendations and
-`kept` journal entries, so a rejected suggestion doesn't come back next turn.
-
-## 3. Messages can't round-trip a tool loop
+## 3. Tool-block persistence — DONE (migration 001)
 
 `messages.content` is `text`. A tool loop produces `tool_use` and `tool_result`
 blocks that have to survive a page reload, or the replayed conversation won't
 validate against the API on the next turn.
 
-**Decision:** two options.
-
-- **Store blocks.** Add `content_json jsonb` to `messages`, write the full block
-  array there, keep `content` as the plain-text rendering for display. Correct, and
-  a bit more code.
-- **Store text only, don't replay tool turns.** Simpler, but the agent loses sight
-  of what it just saved within a conversation.
-
-Recommend the first. Either way `build-system-prompt.js` already re-reads all state
-from Supabase every turn, so the agent recovers the *facts* even under option two —
-it's the mid-turn continuity that suffers.
+**Resolved:** `messages.content_json jsonb` now holds the full block array, with
+`content` kept as the plain-text rendering for display. `App.jsx` writes both. The
+tool loop (gap 4) should read `content_json` when replaying history to the API.
 
 ## 4. The client tool loop isn't written
 
@@ -99,22 +87,18 @@ Agenda tabs exist), or poll. Realtime is available on the free tier.
 surfaces, their cards, and their in-place editing are unbuilt. See `design-spec.md`
 for the card anatomy — note that editing happens **in place, no modals**.
 
-## 7. Database is wide open — **Decision**
+## 7. Database access — RLS enabled (migration 001), PIN still open
 
-No table has RLS enabled. The anon key is in the client bundle, so "deploy on an
-unguessable URL" protects the page, not the data: anyone who loads the app can read
-and write every table.
+The anon key is in the client bundle, so "deploy on an unguessable URL" protects the
+page, not the data: anyone who loads the app can read and write every table.
 
-Options, cheapest first:
+**Resolved (partly):** RLS is now enabled on all eight tables with a permissive
+`using (true)` policy. Practical exposure is unchanged, but access is now controlled
+in one place — tightening it means editing the policy, not the app.
 
-1. Enable RLS with a permissive `using (true)` policy — same practical exposure,
-   but it silences Supabase's warnings and gives you one place to tighten later.
-2. Add the PIN screen the spec already floats, and gate on a Supabase Edge Function
-   rather than the client.
-3. Accept it and move on — it's a private trip tool for two people.
-
-For a trip database holding a door code and flight details, (1) plus (2) is cheap.
-Worth 20 minutes; your call.
+**Still open:** the PIN screen the spec floats. Worth doing before the trip, since
+the accommodation record holds a door code. Gate it in a Supabase Edge Function, not
+the client, or it's decorative.
 
 ---
 

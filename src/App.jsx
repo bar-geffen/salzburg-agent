@@ -77,7 +77,14 @@ function App() {
 
       if (!text) throw new Error('The agent returned an empty response.')
 
-      const assistantMessage = { role: 'assistant', sender: 'Agent', content: text }
+      // content is the plain-text rendering; content_json keeps the full block
+      // array so the conversation can be replayed to the API after a reload.
+      const assistantMessage = {
+        role: 'assistant',
+        sender: 'Agent',
+        content: text,
+        content_json: data.content,
+      }
       const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
         .insert(assistantMessage)

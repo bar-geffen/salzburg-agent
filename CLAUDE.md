@@ -60,12 +60,20 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
 
 ## Things that are not automated
 
-- **`supabase-schema.sql` is run by hand** in the Supabase SQL editor. There are no
-  migrations. If you change the schema, update that file *and* say so in your
-  summary, because someone has to paste it in.
-- **RLS is not enabled on any table.** The anon key ships in the client bundle, so
-  the database is currently world-readable and world-writable to anyone with the
-  URL. This is a known, unresolved decision — see `session1-gaps.md`.
+- **SQL is run by hand** in the Supabase SQL editor. `supabase-schema.sql` is the
+  full current schema for a fresh database; `supabase-migration-NNN.sql` files are
+  deltas for a database that already ran an earlier version. If you change the
+  schema, update `supabase-schema.sql` *and* add a numbered migration *and* say so
+  in your summary, because someone has to paste it in.
+- **RLS is enabled with a fully permissive policy** (`using (true)`). That's the
+  same practical exposure as no RLS — the anon key ships in the client bundle — but
+  the switch is in place, so tightening access means editing the policy, not the
+  app. A PIN gate is still open; see `session1-gaps.md`.
+- **Status columns gate what the agent sees.** `recommendations.status` and
+  `journal.status` exist because the design requires review before anything counts
+  as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
+  recommendations under a separate "Awaiting Review" heading). If you add a write
+  path, respect this — don't insert straight to `kept`.
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (client) and
   `ANTHROPIC_API_KEY` (server only — deliberately unprefixed so Vite never exposes
   it to the browser).

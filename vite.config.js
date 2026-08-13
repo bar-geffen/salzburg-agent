@@ -54,12 +54,33 @@ function devApi() {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   // Vite only exposes VITE_*-prefixed vars to the client. ANTHROPIC_API_KEY is
   // deliberately unprefixed so it never reaches the browser — bridge it into
   // process.env here so the dev-mounted handler can read it, same as Vercel.
   const env = loadEnv(mode, process.cwd(), '')
   if (env.ANTHROPIC_API_KEY) process.env.ANTHROPIC_API_KEY = env.ANTHROPIC_API_KEY
+
+  // Fail the build loudly if the client-side Supabase vars are missing.
+  //
+  // Without this the build still *succeeds*, but silently: VITE_* vars are
+  // inlined at build time, so they become `undefined`, the top-level throw in
+  // src/lib/supabase.js becomes statically reachable, and the minifier strips
+  // the app as dead code. The result is a ~245 kB bundle instead of ~525 kB
+  // that loads to a blank page. A broken deploy with a green checkmark is worse
+  // than no deploy, so stop here instead.
+  if (command === 'build') {
+    const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter(k => !env[k])
+    if (missing.length > 0) {
+      throw new Error(
+        `Missing required build-time env vars: ${missing.join(', ')}.\n` +
+          'These are inlined into the bundle at build time, so they must be set ' +
+          'wherever the build runs — locally in .env, and in the Vercel project ' +
+          'settings (Settings → Environment Variables) for deploys. After adding ' +
+          'them in Vercel you must redeploy; an existing build will not pick them up.',
+      )
+    }
+  }
 
   return {
     plugins: [react(), devApi()],

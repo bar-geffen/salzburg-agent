@@ -16,12 +16,20 @@ export async function buildSystemPrompt() {
     supabase.from('flights').select('*').order('date'),
     supabase.from('accommodation').select('*').order('check_in'),
     supabase.from('activities').select('*').order('date'),
-    supabase.from('recommendations').select('*').order('created_at'),
-    supabase.from('journal').select('*').order('date'),
+    // Rejected suggestions are excluded entirely so they don't get re-proposed.
+    supabase.from('recommendations').select('*').neq('status', 'rejected').order('created_at'),
+    // Drafts are unreviewed text the agent wrote; only kept entries are trip record.
+    supabase.from('journal').select('*').eq('status', 'kept').order('date'),
     supabase.from('learnings').select('*').order('created_at'),
   ])
 
   const today = new Date().toISOString().split('T')[0]
+
+  const kept = recommendations?.filter(r => r.status === 'kept') ?? []
+  const pending = recommendations?.filter(r => r.status === 'pending') ?? []
+
+  const formatRec = r =>
+    `- [${r.category}] ${r.name}${r.source ? ` (via ${r.source})` : ''}${r.visited ? ' ✓ visited' : ''}${r.rating ? ` ${r.rating}/5` : ''}${r.notes ? ` — ${r.notes}` : ''}`
 
   const sections = [
     `# You are a personal travel agent for the ${trip?.title || 'Salzburg 2026'} trip.`,
@@ -47,9 +55,12 @@ export async function buildSystemPrompt() {
       : 'Nothing booked yet.',
     '',
     `## Saved Recommendations`,
-    recommendations?.length
-      ? recommendations.map(r => `- [${r.category}] ${r.name}${r.source ? ` (via ${r.source})` : ''}${r.visited ? ' ✓ visited' : ''}${r.rating ? ` ${r.rating}/5` : ''}${r.notes ? ` — ${r.notes}` : ''}`).join('\n')
-      : 'No recommendations saved yet.',
+    kept.length ? kept.map(formatRec).join('\n') : 'No recommendations saved yet.',
+    '',
+    `## Awaiting Review`,
+    pending.length
+      ? `${pending.map(formatRec).join('\n')}\n\nThese are captured but not yet confirmed — don't treat them as saved, and don't re-suggest them as if they were new.`
+      : 'Nothing awaiting review.',
     '',
     `## Daily Journal`,
     journal?.length
