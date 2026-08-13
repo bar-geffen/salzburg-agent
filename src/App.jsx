@@ -2,7 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { supabase } from './lib/supabase'
 import { buildSystemPrompt } from './lib/build-system-prompt'
+import { TOOLS, executeTool } from './lib/tools'
 import './App.css'
+
+// Each round trip is one API call, so this bounds cost and latency as much as it
+// prevents a runaway loop. Five is generous: a turn that saves a recommendation,
+// logs the day, and replies uses two.
+const MAX_TOOL_ITERATIONS = 5
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -51,43 +57,92 @@ function App() {
 
     try {
       const systemPrompt = await buildSystemPrompt()
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemPrompt,
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
-        }),
-      })
 
-      const data = await response.json()
+      // The tool loop runs in memory. Only the user's message and the agent's
+      // final reply are persisted — the intermediate tool_use / tool_result
+      // turns are not, deliberately:
+      //
+      //   - What the tools wrote is already in Supabase, and buildSystemPrompt()
+      //     re-reads every table on the next message, so nothing is forgotten.
+      //   - Persisting tool_use blocks without their results would produce a
+      //     history the API rejects if the page reloads mid-loop.
+      //   - The messages table stays free of plumbing the UI would have to hide.
+      const apiMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }))
 
-      if (!response.ok) {
-        throw new Error(data?.error || `Request failed (${response.status})`)
+      let finalBlocks = []
+      const spokenText = []
+      let hitIterationCap = true
+
+      for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemPrompt, messages: apiMessages, tools: TOOLS }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`)
+
+        finalBlocks = data.content ?? []
+
+        // Text can arrive alongside tool calls, so collect it every pass rather
+        // than only reading the last response.
+        const text = finalBlocks
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('\n\n')
+          .trim()
+        if (text) spokenText.push(text)
+
+        if (data.stop_reason !== 'tool_use') {
+          hitIterationCap = false
+          break
+        }
+
+        const toolUses = finalBlocks.filter(block => block.type === 'tool_use')
+
+        // Run them concurrently, but return every result in a single user
+        // message — splitting them across messages teaches the model to stop
+        // making parallel calls. A failed tool comes back as an error result
+        // rather than throwing, so the agent can adapt instead of the turn dying.
+        const toolResults = await Promise.all(
+          toolUses.map(async block => {
+            try {
+              return {
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: await executeTool(block.name, block.input),
+              }
+            } catch (toolError) {
+              console.error(`Tool ${block.name} failed:`, toolError)
+              return {
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: toolError.message,
+                is_error: true,
+              }
+            }
+          }),
+        )
+
+        apiMessages.push({ role: 'assistant', content: finalBlocks })
+        apiMessages.push({ role: 'user', content: toolResults })
       }
 
-      // api/chat.js is a pass-through: it returns Claude's raw content blocks, not
-      // a flat string. Render the text blocks; tool_use blocks are handled by the
-      // tool loop (not built yet — see session1-gaps.md).
-      const text = (data.content ?? [])
-        .filter(block => block.type === 'text')
-        .map(block => block.text)
-        .join('\n\n')
-        .trim()
+      if (hitIterationCap) {
+        spokenText.push(
+          `_(I stopped after ${MAX_TOOL_ITERATIONS} rounds of saving things. Anything already saved is safe — ask me to carry on if something's missing.)_`,
+        )
+      }
 
+      const text = spokenText.join('\n\n').trim()
       if (!text) throw new Error('The agent returned an empty response.')
 
-      // content is the plain-text rendering; content_json keeps the full block
-      // array so the conversation can be replayed to the API after a reload.
-      const assistantMessage = {
-        role: 'assistant',
-        sender: 'Agent',
-        content: text,
-        content_json: data.content,
-      }
+      // content is the plain-text rendering; content_json keeps the final block
+      // array for debugging and future replay.
       const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
-        .insert(assistantMessage)
+        .insert({ role: 'assistant', sender: 'Agent', content: text, content_json: finalBlocks })
         .select()
         .single()
 

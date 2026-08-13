@@ -4,20 +4,18 @@ What `salzburg-app-session1-spec.md` promises that the code doesn't do yet. Orde
 by how much else depends on it. Items marked **Decision** need a human answer;
 the rest are just build work.
 
-**Resolved so far:** gaps 2 (pending state), 3 (tool-block persistence), and 7 (RLS)
-are done — see `supabase-migration-001.sql`. Remaining: 1, 4, 5, 6.
+**Resolved so far:** gaps 1 (tools), 2 (pending state), 3 (tool-block persistence),
+4 (tool loop), and 7 (RLS) are done. Remaining: 5 (realtime) and 6 (Agenda/Saved tabs).
 
 ---
 
-## 1. Agent learning has no tools
+## 1. Agent learning tools — DONE
 
-The spec's core feature — the agent extracting learnings, recommendations, and
-journal entries into Supabase — has **no implementation and no defined schema**.
-`api/chat.js` forwards a `tools` array, but nothing populates it and no tool
-definitions exist anywhere in the repo.
-
-Proposed tool set, matching the existing Supabase columns. Put it in
-`src/lib/tools.js` and pass it on every request:
+**Resolved:** `src/lib/tools.js` defines four tools and their executors, passed on
+every request. Verified end to end in the browser: a message mentioning a restaurant
+and a nap constraint produced a `save_recommendation` (status `pending`) and a
+`save_learning` (type `constraint`) in Supabase, and the agent replied "saved to your
+review list" rather than claiming it was live.
 
 ```js
 save_learning       { type: 'liked'|'disliked'|'requirement'|'constraint'|'preference',
@@ -31,10 +29,10 @@ add_activity        { name: string, date: 'YYYY-MM-DD', time?: string,
                       location?: string, notes?: string }
 ```
 
-Write descriptions that say **when** to call each one, not just what it does —
-current models are conservative about reaching for tools, and the trigger condition
-is what drives the should-call rate. Give each one a couple of the examples from the
-spec's "Agent learning" section.
+Descriptions say **when** to call each tool, not just what it does — models are
+conservative about reaching for tools, and the trigger condition drives the
+should-call rate. `strict: true` is deliberately not used: structured outputs aren't
+supported on `claude-sonnet-4-6`.
 
 ## 2. Pending state — DONE (migration 001)
 
@@ -60,19 +58,29 @@ The UI for acting on these — Keep / Not this one, Edit / Keep — is part of g
 blocks that have to survive a page reload, or the replayed conversation won't
 validate against the API on the next turn.
 
-**Resolved:** `messages.content_json jsonb` now holds the full block array, with
-`content` kept as the plain-text rendering for display. `App.jsx` writes both. The
-tool loop (gap 4) should read `content_json` when replaying history to the API.
+**Resolved:** `messages.content_json jsonb` now holds the block array, with `content`
+kept as the plain-text rendering for display. `App.jsx` writes both.
 
-## 4. The client tool loop isn't written
+In practice the loop sidesteps the replay problem rather than solving it — see the
+design note under gap 4. Because tool turns are never persisted, replaying plain text
+is valid and `content_json` is a fidelity/debugging record. It becomes load-bearing
+if tool turns are ever persisted (e.g. to show tool activity in the UI).
 
-`api/chat.js` deliberately returns raw blocks and `stop_reason` so the client can run
-the loop. The client doesn't. Needs: on `stop_reason === 'tool_use'`, execute each
-`tool_use` block against Supabase, append all `tool_result` blocks in a **single**
-user message, re-POST, repeat. Cap the iterations.
+## 4. Client tool loop — DONE
 
-`sendMessage` in `App.jsx` now extracts text and surfaces errors correctly, but it
-stops at the first response — it does not loop.
+**Resolved:** `sendMessage` in `App.jsx` loops on `stop_reason === 'tool_use'`,
+executing tools concurrently and returning every `tool_result` in a single user
+message (splitting them trains the model out of parallel calls). A failing tool comes
+back as an error result rather than throwing, so the agent adapts instead of the turn
+dying. Capped at `MAX_TOOL_ITERATIONS` (5).
+
+**Design note — the loop runs in memory.** Only the user's message and the agent's
+final reply are persisted; intermediate `tool_use` / `tool_result` turns are not.
+What the tools wrote is already in Supabase and `buildSystemPrompt()` re-reads every
+table next message, so nothing is forgotten — and persisting `tool_use` blocks
+without their results would produce a history the API rejects if the page reloads
+mid-loop. `content_json` therefore holds the final response blocks rather than the
+whole exchange.
 
 ## 5. No realtime
 

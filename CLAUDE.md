@@ -44,6 +44,12 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   has a session there.
 - `src/lib/build-system-prompt.js` assembles the system prompt from seven tables in
   parallel. Adding a table means adding a section here too.
+- `src/lib/tools.js` holds the tool definitions *and* their executors. The tools
+  write to Supabase, so they run client-side; `sendMessage` in `App.jsx` loops on
+  `stop_reason === 'tool_use'` until the agent stops calling them. The loop is
+  in-memory — only the user's message and the final reply are persisted. Don't use
+  `strict: true` on a tool; structured outputs aren't supported on the model in
+  `api/chat.js`.
 - `vite.config.js` mounts `api/chat.js` on the dev server behind a Vercel-compatible
   `req`/`res` shim, so `npm run dev` exercises the real serverless code path.
 
