@@ -1,8 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
+import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { buildSystemPrompt } from './lib/build-system-prompt'
 import { TOOLS, executeTool } from './lib/tools'
+import { useTripData } from './lib/use-trip-data'
+import { todayISO, tripSubtitle } from './lib/dates'
+import TabBar from './components/TabBar'
+import Chat from './components/Chat'
+import Agenda from './components/Agenda'
+import Saved from './components/Saved'
 import './App.css'
 
 // Each round trip is one API call, so this bounds cost and latency as much as it
@@ -10,19 +15,40 @@ import './App.css'
 // logs the day, and replies uses two.
 const MAX_TOOL_ITERATIONS = 5
 
+// A hung request would otherwise spin forever — the fetch has no default
+// timeout, and hotel wifi drops connections without closing them.
+const REQUEST_TIMEOUT_MS = 60_000
+
+const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved' }
+
 function App() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [sender, setSender] = useState(() => localStorage.getItem('sender') || '')
-  const messagesEndRef = useRef(null)
+  const [tab, setTab] = useState('chat')
+  const [online, setOnline] = useState(() => navigator.onLine)
 
-  useEffect(() => { loadMessages() }, [])
+  // One load and one refresh path for all six trip tables, held here so tabs
+  // don't refetch on every switch and the header can show Saved's counts while
+  // you're looking at Chat.
+  const trip = useTripData()
+  const today = todayISO()
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    loadMessages()
+  }, [])
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [])
 
   async function loadMessages() {
     const { data } = await supabase
@@ -32,11 +58,17 @@ function App() {
     if (data) setMessages(data)
   }
 
+  function chooseSender(name) {
+    setSender(name)
+    localStorage.setItem('sender', name)
+  }
+
   async function sendMessage(e) {
     e.preventDefault()
     if (!input.trim() || loading) return
 
-    const userMessage = { role: 'user', sender, content: input.trim() }
+    const text = input.trim()
+    const userMessage = { role: 'user', sender, content: text }
 
     const { data: savedMsg, error: saveError } = await supabase
       .from('messages')
@@ -74,11 +106,7 @@ function App() {
       let hitIterationCap = true
 
       for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ systemPrompt, messages: apiMessages, tools: TOOLS }),
-        })
+        const response = await postChat({ systemPrompt, messages: apiMessages })
 
         const data = await response.json()
         if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`)
@@ -87,12 +115,12 @@ function App() {
 
         // Text can arrive alongside tool calls, so collect it every pass rather
         // than only reading the last response.
-        const text = finalBlocks
+        const spoken = finalBlocks
           .filter(block => block.type === 'text')
           .map(block => block.text)
           .join('\n\n')
           .trim()
-        if (text) spokenText.push(text)
+        if (spoken) spokenText.push(spoken)
 
         if (data.stop_reason !== 'tool_use') {
           hitIterationCap = false
@@ -135,23 +163,34 @@ function App() {
         )
       }
 
-      const text = spokenText.join('\n\n').trim()
-      if (!text) throw new Error('The agent returned an empty response.')
+      const reply = spokenText.join('\n\n').trim()
+      if (!reply) throw new Error('The agent returned an empty response.')
 
       // content is the plain-text rendering; content_json keeps the final block
       // array for debugging and future replay.
       const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
-        .insert({ role: 'assistant', sender: 'Agent', content: text, content_json: finalBlocks })
+        .insert({ role: 'assistant', sender: 'Agent', content: reply, content_json: finalBlocks })
         .select()
         .single()
 
       if (assistantError || !savedAssistant) throw new Error("Couldn't save the reply.")
 
       setMessages(prev => [...prev, savedAssistant])
+
+      // The agent may have just written a recommendation or journal draft.
+      trip.refreshTable('recommendations')
+      trip.refreshTable('journal')
+      trip.refreshTable('activities')
     } catch (err) {
       console.error('Failed to send message:', err)
-      setError(err.message || 'Something went wrong. Try again.')
+      setError(
+        err.name === 'AbortError'
+          ? 'That took too long. Try again.'
+          : err.message || 'Something went wrong. Try again.',
+      )
+      // Give the text back rather than losing what they typed.
+      setInput(prev => prev || text)
     } finally {
       setLoading(false)
     }
@@ -159,12 +198,12 @@ function App() {
 
   if (!sender) {
     return (
-      <div className="sender-select">
-        <h1>Salzburg 2026</h1>
-        <p>Who's chatting?</p>
-        <div className="sender-buttons">
+      <div className="gate">
+        <h1 className="gate-title">Salzburg 2026</h1>
+        <p className="gate-sub">Who's chatting?</p>
+        <div className="gate-buttons">
           {['Bar', 'Ori'].map(name => (
-            <button key={name} onClick={() => { setSender(name); localStorage.setItem('sender', name) }}>
+            <button key={name} type="button" onClick={() => chooseSender(name)}>
               {name}
             </button>
           ))}
@@ -173,48 +212,92 @@ function App() {
     )
   }
 
+  const pendingCount = trip.recommendations.filter(r => r.status === 'pending').length
+  const keptCount = trip.recommendations.filter(r => r.status === 'kept').length
+  const subtitle =
+    tab === 'saved'
+      ? [pendingCount > 0 && `${pendingCount} new`, `${keptCount} kept`].filter(Boolean).join(' · ')
+      : tripSubtitle(trip.trip, today)
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Salzburg 2026</h1>
-        <span className="sender-badge">{sender}</span>
+        <div className="app-title">
+          <div className="app-title-text">
+            <span className="title">{TITLES[tab]}</span>
+            <span className="subtitle">{subtitle}</span>
+          </div>
+          <button
+            type="button"
+            className="refresh"
+            onClick={() => trip.refreshAll()}
+            disabled={trip.refreshing}
+          >
+            {trip.refreshing ? '…' : 'Refresh'}
+          </button>
+        </div>
+        <TabBar value={tab} onChange={setTab} />
       </header>
 
-      <div className="messages">
-        {messages.length === 0 && (
-          <div className="empty-state">
-            <p>Hi {sender}! I'm your Salzburg travel agent. Ask me anything — what to do tomorrow, save a recommendation, or tell me how your day went.</p>
-          </div>
-        )}
-        {messages.map(msg => (
-          <div key={msg.id} className={`message ${msg.role}`}>
-            {msg.role === 'user' && <span className="message-sender">{msg.sender}</span>}
-            <div className="message-content">
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="message assistant">
-            <div className="message-content loading">Thinking...</div>
-          </div>
-        )}
-        {error && <div className="message-error">{error}</div>}
-        <div ref={messagesEndRef} />
-      </div>
+      {!online && <div className="banner">Offline — changes will fail until you reconnect.</div>}
 
-      <form className="input-bar" onSubmit={sendMessage}>
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Ask your travel agent..."
-          disabled={loading}
+      {tab === 'chat' && (
+        <Chat
+          messages={messages}
+          sender={sender}
+          onSenderChange={chooseSender}
+          input={input}
+          onInputChange={setInput}
+          loading={loading}
+          error={error}
+          onSubmit={sendMessage}
         />
-        <button type="submit" disabled={loading || !input.trim()}>Send</button>
-      </form>
+      )}
+
+      {tab === 'agenda' && (
+        <Agenda
+          trip={trip.trip}
+          activities={trip.activities}
+          accommodation={trip.accommodation}
+          flights={trip.flights}
+          journal={trip.journal}
+          today={today}
+          loading={trip.loading}
+          error={trip.error}
+          onRetry={trip.refreshAll}
+          onKeepJournal={trip.keepJournal}
+          onSaveJournal={trip.saveJournal}
+        />
+      )}
+
+      {tab === 'saved' && (
+        <Saved
+          recommendations={trip.recommendations}
+          loading={trip.loading}
+          error={trip.error}
+          onRetry={trip.refreshAll}
+          onKeep={trip.keepRec}
+          onReject={trip.rejectRec}
+        />
+      )}
     </div>
   )
+}
+
+/** POST to /api/chat with a hard timeout. */
+async function postChat(body) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, tools: TOOLS }),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export default App

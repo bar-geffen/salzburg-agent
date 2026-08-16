@@ -1,160 +1,733 @@
-/* Minimal placeholder styles — Claude Design will replace these */
+/* Component styles. Tokens and the shell live in index.css.
+ *
+ * Every value here comes from design-spec.md / the Claude Design export. Where a
+ * comment says "design:", that's a literal from the handoff sheet. */
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #fafaf8;
-  color: #1a1a1a;
-}
-
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-  max-width: 600px;
-  margin: 0 auto;
-}
+/* ── Header ──────────────────────────────────────────────────────────────── */
 
 .app-header {
+  padding: var(--pad-top) 20px 12px;
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.app-title {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e8e8e4;
+  gap: 12px;
 }
 
-.app-header h1 { font-size: 18px; font-weight: 600; }
-.sender-badge {
-  font-size: 13px;
-  padding: 4px 10px;
-  background: #e8e8e4;
-  border-radius: 12px;
+.app-title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.messages {
+.title {
+  font-family: var(--serif);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.subtitle {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+/* Refresh control. Text, not an icon — the design has no icons anywhere. */
+.refresh {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  min-height: 44px;
+  padding: 0 4px;
+  flex: none;
+}
+
+.refresh[disabled] {
+  color: var(--label);
+  cursor: default;
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--track);
+  border-radius: var(--r-pill);
+  padding: 4px;
+}
+
+.tab {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.tab--on {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(31 27 22 / 8%);
+}
+
+/* ── Shared primitives ───────────────────────────────────────────────────── */
+
+.scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 20px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.empty-state {
-  color: #888;
-  text-align: center;
-  margin-top: 40%;
-  padding: 0 20px;
-  line-height: 1.5;
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.message { max-width: 85%; }
-.message.user { align-self: flex-end; }
-.message.assistant { align-self: flex-start; }
-
-.message-sender {
+.section-label {
+  font-family: var(--mono);
   font-size: 11px;
-  color: #888;
-  margin-bottom: 2px;
-  display: block;
-  text-align: right;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
 }
 
-.message-content {
-  padding: 10px 14px;
-  border-radius: 16px;
-  line-height: 1.5;
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The transparent border is deliberate: it keeps the sand card the same box size
+ * as the bordered white ones so they don't jump by 2px. */
+.card--sand {
+  background: var(--sand);
+  border-color: transparent;
+}
+
+.card--tight {
+  padding: 16px 18px;
+  gap: 7px;
+}
+
+.btn-link {
+  min-height: 44px;
+  padding: 0 4px;
   font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  flex: none;
 }
 
-.message.user .message-content {
-  background: #2a5a3a;
-  color: white;
-  border-bottom-right-radius: 4px;
+.btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  font-size: 15px;
+  font-weight: 500;
 }
 
-.message.assistant .message-content {
-  background: #f0f0ec;
-  border-bottom-left-radius: 4px;
+.btn--primary {
+  background: var(--accent);
+  color: var(--card);
 }
 
-.message-content.loading {
-  color: #888;
+.btn--outline {
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--btn-line);
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+  flex: none;
+}
+
+.pill--food {
+  color: var(--accent);
+  background: var(--tint-bar);
+}
+.pill--activity {
+  color: var(--green);
+  background: var(--tint-ori);
+}
+.pill--day-trip {
+  color: var(--ochre);
+  background: var(--tint-ochre);
+}
+/* The design only draws three; the schema also allows accommodation and other. */
+.pill--other {
+  color: var(--muted);
+  background: var(--track);
+}
+
+/* Empty states are deliberately quiet — no dashed boxes. With the trip weeks
+ * away most sections are empty, and placeholder boxes read as broken. */
+.empty {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--muted);
+  padding: 2px 0;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--label);
+}
+
+/* ── Errors and connectivity ─────────────────────────────────────────────── */
+
+.banner {
+  padding: 10px 20px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--label);
+  background: var(--track);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+
+.error-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.error-inline {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--accent);
+  text-align: left;
+  padding: 2px 0;
+  min-height: 0;
+}
+
+/* ── Chat ────────────────────────────────────────────────────────────────── */
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+}
+
+/* Design: the agent gets no bubble — full width, so long day plans read as
+ * prose rather than a wall of tinted box. */
+.msg--assistant {
+  align-items: stretch;
+}
+
+.msg--user {
+  align-items: flex-end;
+}
+
+/* Design: "sender is the tint, not an avatar" */
+.sender-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+  padding: 0 4px;
+}
+
+.msg--user .msg-body {
+  padding: 12px 16px;
+  border-radius: 20px 20px 6px 20px;
+  max-width: 85%;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.msg--bar .msg-body {
+  background: var(--tint-bar);
+}
+
+.msg--ori .msg-body {
+  background: var(--tint-ori);
+}
+
+.msg--assistant .msg-body {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--prose);
+}
+
+.msg-body.is-loading {
+  color: var(--label);
   font-style: italic;
 }
 
-.message-error {
-  color: #a9542f;
-  font-size: 15px;
-  text-align: center;
-  padding: 12px 20px;
-  line-height: 1.45;
+/* Markdown, as rendered by ReactMarkdown. index.css used to style these
+ * elements globally; deleting that would silently flatten every agent reply. */
+.msg-body > * + * {
+  margin-top: 10px;
 }
 
-.message-content p { margin-bottom: 8px; }
-.message-content p:last-child { margin-bottom: 0; }
-.message-content h3 { font-size: 14px; margin: 8px 0 4px; }
-.message-content ul, .message-content ol { padding-left: 18px; margin-bottom: 8px; }
-.message-content li { margin-bottom: 4px; }
-
-.input-bar {
-  display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #e8e8e4;
-  background: white;
+.msg-body h1,
+.msg-body h2,
+.msg-body h3 {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 400;
+  color: var(--ink);
 }
 
-.input-bar input {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid #ddd;
-  border-radius: 24px;
-  font-size: 15px;
-  outline: none;
+.msg-body h4,
+.msg-body h5,
+.msg-body h6 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
 }
 
-.input-bar input:focus { border-color: #2a5a3a; }
+.msg-body strong {
+  font-weight: 600;
+  color: var(--ink);
+}
 
-.input-bar button {
-  padding: 12px 20px;
-  background: #2a5a3a;
-  color: white;
+.msg-body a {
+  color: var(--accent);
+}
+
+.msg-body ul,
+.msg-body ol {
+  padding-left: 20px;
+}
+
+.msg-body li + li {
+  margin-top: 4px;
+}
+
+.msg-body code {
+  font-family: var(--mono);
+  font-size: 14px;
+  background: var(--track);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+.msg-body pre {
+  background: var(--track);
+  padding: 12px;
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+}
+
+.msg-body pre code {
+  background: none;
+  padding: 0;
+}
+
+.msg-body blockquote {
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+  color: var(--muted);
+}
+
+.msg-body hr {
   border: none;
-  border-radius: 24px;
-  font-size: 15px;
-  cursor: pointer;
+  border-top: 1px solid var(--line);
 }
 
-.input-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg-body table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 15px;
+}
 
-/* Sender selection screen */
-.sender-select {
+.msg-body th,
+.msg-body td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.chat-empty {
+  margin-top: 12%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100dvh;
-  gap: 16px;
+  gap: 10px;
 }
 
-.sender-select h1 { font-size: 24px; }
-.sender-select p { color: #888; }
+.chat-empty-title {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.25;
+}
 
-.sender-buttons {
+.chat-empty-body {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ── Composer ────────────────────────────────────────────────────────────── */
+
+.composer {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px var(--pad-bottom);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+/* Design: a Bar/Ori toggle sits above the input, so whoever is holding the
+ * phone can switch without clearing storage. */
+.who {
+  display: flex;
+  gap: 4px;
+  align-self: flex-start;
+  background: var(--track);
+  border-radius: var(--r-pill);
+  padding: 3px;
+}
+
+.who button {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  min-height: 32px;
+}
+
+.who button.is-on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(31 27 22 / 8%);
+}
+
+.composer-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.composer input {
+  flex: 1;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid var(--field);
+  border-radius: 26px;
+  background: var(--card);
+  font-size: 17px;
+}
+
+.composer input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.send {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--card);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.send[disabled] {
+  background: var(--btn-line);
+  color: var(--card);
+  cursor: default;
+}
+
+/* ── Agenda ──────────────────────────────────────────────────────────────── */
+
+.day-date {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+/* Design: bare accent mono inline in the serif heading — not a pill. */
+.day-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-left: 8px;
+  /* Wrap as a unit — otherwise a long countdown breaks as "IN / 4 WEEKS". */
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* Kept at 46px even when empty so names stay aligned down the card. */
+.row-time {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  min-width: 46px;
+  padding-top: 2px;
+  flex: none;
+}
+
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.row-detail {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.stay-name {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.stay-detail {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.flight-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   gap: 12px;
 }
 
-.sender-buttons button {
-  padding: 16px 40px;
-  font-size: 18px;
-  background: white;
-  border: 2px solid #2a5a3a;
-  border-radius: 12px;
-  color: #2a5a3a;
-  cursor: pointer;
+.flight-route {
+  font-size: 17px;
+  font-weight: 600;
 }
 
-.sender-buttons button:hover { background: #2a5a3a; color: white; }
+.flight-no {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--label);
+}
+
+.flight-when {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.journal-prose {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--prose);
+}
+
+.journal-edit {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid var(--field);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--prose);
+  resize: vertical;
+}
+
+.journal-edit:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.actions--spread {
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+/* ── Saved ───────────────────────────────────────────────────────────────── */
+
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.filters::-webkit-scrollbar {
+  display: none;
+}
+
+.filter {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--field);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: none;
+}
+
+.filter--on {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: transparent;
+}
+
+.rec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rec-name {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.rec-why {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.rec-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+/* Kept cards sit closer together than sections do. */
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Sender gate (first run only) ────────────────────────────────────────── */
+
+.gate {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 0 32px;
+  text-align: center;
+  background: var(--paper);
+}
+
+.gate-title {
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.gate-sub {
+  font-size: 17px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.gate-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.gate-buttons button {
+  min-height: 52px;
+  padding: 0 28px;
+  border-radius: 26px;
+  border: 1px solid var(--field);
+  background: var(--card);
+  font-size: 17px;
+  font-weight: 500;
+}

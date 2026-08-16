@@ -1,5 +1,6 @@
 import { TRAVELER_PROFILE } from '../data/traveler-profile'
 import { supabase } from './supabase'
+import { todayISO } from './dates'
 
 export async function buildSystemPrompt() {
   // Fetch all context from Supabase in parallel
@@ -23,7 +24,9 @@ export async function buildSystemPrompt() {
     supabase.from('learnings').select('*').order('created_at'),
   ])
 
-  const today = new Date().toISOString().split('T')[0]
+  // Local, not toISOString() — that's UTC, so in Israel between 00:00 and 03:00
+  // the agent would think it's still yesterday while the Agenda shows today.
+  const today = todayISO()
 
   const kept = recommendations?.filter(r => r.status === 'kept') ?? []
   const pending = recommendations?.filter(r => r.status === 'pending') ?? []

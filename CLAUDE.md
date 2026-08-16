@@ -50,6 +50,17 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   in-memory — only the user's message and the final reply are persisted. Don't use
   `strict: true` on a tool; structured outputs aren't supported on the model in
   `api/chat.js`.
+- `src/lib/trip-data.js` owns every read of the trip tables **and** the four
+  user-initiated mutations. `src/lib/use-trip-data.js` wraps it in a hook that
+  loads once and refetches on focus. Tabs are presentational; chat state and the
+  tool loop stay in `App.jsx`, so switching tabs mid-turn can't unmount an
+  in-flight request.
+- `src/lib/dates.js` — all date formatting. Two rules it exists to enforce: parse
+  `YYYY-MM-DD` at *local* midnight (`new Date('2026-09-15')` is UTC and renders as
+  the 14th behind UTC), and format with an explicit `en-GB` locale, never the
+  user's, or the design's typography breaks on a differently-configured phone.
+- The Agenda's content is driven by **trip phase** (`before` / `during` / `after`),
+  not by a single layout — "Today" means nothing when the trip is weeks out.
 - `vite.config.js` mounts `api/chat.js` on the dev server behind a Vercel-compatible
   `req`/`res` shim, so `npm run dev` exercises the real serverless code path.
 
@@ -86,6 +97,10 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
 
 ## Conventions
 
-- React 19 + Vite, plain JS with JSX. No TypeScript, no CSS framework.
+- React 19 + Vite, plain JS with JSX. No TypeScript, no CSS framework, no router,
+  no state library, no icon library — the design has no icons.
 - No semicolons, single quotes, 2-space indent. Match the surrounding file.
 - Model ID lives in one place: `MODEL` at the top of `api/chat.js`.
+- **Design tokens are CSS variables in `src/index.css`; component styles are in
+  `src/App.css`.** Don't hard-code a colour or a font stack — if a value isn't in
+  `:root`, check `design-spec.md` before inventing one.

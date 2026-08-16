@@ -5,7 +5,8 @@ by how much else depends on it. Items marked **Decision** need a human answer;
 the rest are just build work.
 
 **Resolved so far:** gaps 1 (tools), 2 (pending state), 3 (tool-block persistence),
-4 (tool loop), and 7 (RLS) are done. Remaining: 5 (realtime) and 6 (Agenda/Saved tabs).
+4 (tool loop), 6 (tabs + design system) and 7 (RLS) are done.
+Remaining: **5** (realtime, PR 3), **8** (auth), and the structured day plan (PR 2).
 
 ---
 
@@ -82,18 +83,41 @@ without their results would produce a history the API rejects if the page reload
 mid-loop. `content_json` therefore holds the final response blocks rather than the
 whole exchange.
 
-## 5. No realtime
+## 5. No realtime — partly mitigated, PR 3
 
 The spec says one user's changes are "immediately visible to the other."
-`loadMessages()` runs once on mount and never again. Add a Supabase realtime
-subscription on `messages` (and on `recommendations` / `journal` once the Saved and
-Agenda tabs exist), or poll. Realtime is available on the free tier.
 
-## 6. Agenda and Saved tabs don't exist
+**Mitigated for now:** `use-trip-data.js` refetches on `visibilitychange`, on window
+focus, and via the header's Refresh control, so picking the phone back up shows
+what the other person did. Chat messages still need a reload.
 
-`App.jsx` is chat-only. The design specifies three tabs; the two trip-context
-surfaces, their cards, and their in-place editing are unbuilt. See `design-spec.md`
-for the card anatomy — note that editing happens **in place, no modals**.
+**Still open (PR 3):** Supabase realtime subscriptions. Two prerequisites, both
+noted because they're easy to miss:
+
+- **`supabase-migration-002.sql` must add the tables to the `supabase_realtime`
+  publication.** No file in the repo does this yet, and without it realtime
+  silently does nothing.
+- A **connection indicator** in the header, so a dead websocket (or a forgotten
+  migration) is visible rather than mysterious.
+
+Also needed: dedupe realtime echoes by server id, and change the
+`setMessages(updatedMessages)` whole-array overwrite in `sendMessage` — if the
+other user's message lands between load and insert, that line drops it.
+
+## 6. Agenda and Saved tabs — DONE
+
+**Resolved:** three tabs as a segmented control, plus the full design system
+(tokens, the three fonts, and a restyled Chat). `Agenda.jsx` shows trip/day cards,
+Stay, Flights and the journal draft with edit-in-place; `Saved.jsx` shows filter
+pills, pending cards with Keep / Not this one, and kept cards with Remove.
+
+What the Agenda shows is driven by trip phase — before / during / after — because
+"Today" means nothing when the trip is weeks away.
+
+**Deliberately omitted:** the design's `+ Add to today`, `+ Add`, `Edit` (Stay),
+`See all`, `Keep both` and `+ Add one yourself` affordances. Every one has a working
+alternative — say it in chat — and a disabled button is a promise with "not yet"
+attached. Adding them means building forms, which is a bigger change than it looks.
 
 ## 7. Database access — RLS enabled (migration 001), PIN still open
 
@@ -104,9 +128,20 @@ page, not the data: anyone who loads the app can read and write every table.
 `using (true)` policy. Practical exposure is unchanged, but access is now controlled
 in one place — tightening it means editing the policy, not the app.
 
-**Still open:** the PIN screen the spec floats. Worth doing before the trip, since
-the accommodation record holds a door code. Gate it in a Supabase Edge Function, not
-the client, or it's decorative.
+**Still open:** a real auth gate — see gap 8, which supersedes the PIN idea.
+
+## 8. No auth — deferred deliberately
+
+The sender gate is `localStorage` only: it picks a name for message attribution, it
+is not a login. Anyone with the URL can read and write everything, including the
+accommodation record, which is where a door code would live.
+
+**Decision:** Google OAuth via Supabase Auth, deferred to its own PR. It isn't a UI
+change — it touches RLS (`using (true)` → `auth.uid() is not null`), where `sender`
+comes from, the Supabase project's auth config, and a redirect URL per environment.
+Bundling it into the design-system rewrite would have made that diff unreviewable.
+
+It supersedes the PIN gate in gap 7. Worth doing before the trip.
 
 ---
 
