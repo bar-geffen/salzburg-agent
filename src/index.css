@@ -1,111 +1,105 @@
+/* Design tokens, reset, and the app shell.
+ *
+ * Values come from design-spec.md, which transcribes the handoff sheet in
+ * design/Salzburg Travel Agent.dc.html. Don't invent colours, spacing, or type —
+ * if something isn't here, it's in that file.
+ *
+ * Component styles live in App.css. */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Surfaces */
+  --paper: #faf7f2; /* app background */
+  --sand: #f4efe7; /* today / pending tint */
+  --line: #efe7da; /* 1px borders */
+  --card: #ffffff;
+  --track: #f0eae0; /* tab track, neutral pill tint */
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Text */
+  --ink: #1f1b16; /* body */
+  --muted: #6b635a; /* secondary detail */
+  --label: #756c5e; /* mono labels */
+  --prose: #3a342c; /* journal prose — softer than ink */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Accents. Terracotta doubles as Bar's colour, green as Ori's. */
+  --accent: #a9542f;
+  --green: #4e6b55;
+  --ochre: #7a6a4e;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Tints — the 8% versions of the accents */
+  --tint-bar: #f6ede6;
+  --tint-ori: #e9efe9;
+  --tint-ochre: #f2eddf;
+
+  /* Borders that aren't --line */
+  --field: #e4dbcc; /* inputs, filter pills */
+  --btn-line: #ded4c4; /* secondary buttons */
+
+  /* Type. Literata for titles and journal prose, Source Sans 3 for anything
+   * read fast, IBM Plex Mono for times, labels and flight numbers.
+   * The fallbacks matter: display=swap paints in them first. */
+  --serif: "Literata", Georgia, serif;
+  --sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  /* Radii */
+  --r-card: 18px;
+  --r-pill: 999px;
+  --r-sm: 12px;
+
+  /* Safe areas, with the design's iOS device-frame values as the floor. */
+  --pad-top: max(60px, env(safe-area-inset-top));
+  --pad-bottom: max(34px, env(safe-area-inset-bottom));
+
+  /* This is a fixed light paper theme. Without this, iOS dark mode inverts
+   * form controls and the inputs go black on a cream page. */
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  margin: 0;
+  font: 400 17px/1.5 var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  /* iOS enlarges text in landscape without this. */
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+::placeholder {
+  color: var(--label);
+}
+
+/* The shell. Mobile-first — 600px is about as wide as the design reads well;
+ * on a phone it's full-bleed. */
+.app {
+  height: 100dvh;
+  max-width: 600px;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  background: var(--paper);
 }

@@ -1,4 +1,8 @@
 -- Run this in your Supabase SQL Editor (supabase.com → your project → SQL Editor)
+--
+-- This is the full current schema, for a fresh database. If you already ran an
+-- earlier version of this file, don't re-run it — apply supabase-migration-001.sql
+-- instead, which adds the same changes to an existing database.
 
 -- Trip profile
 create table trip (
@@ -64,6 +68,9 @@ create table recommendations (
   notes text,
   visited boolean default false,
   rating integer check (rating >= 1 and rating <= 5),
+  -- Agent-captured suggestions land as 'pending' and need Keep / Not this one
+  -- before they count as saved. Only 'kept' rows go into the system prompt.
+  status text not null default 'pending' check (status in ('pending', 'kept', 'rejected')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -78,6 +85,9 @@ create table journal (
   energy_level text check (energy_level in ('low', 'medium', 'high')),
   want_more_of text,
   want_less_of text,
+  -- The agent drafts one entry per day from that day's chat; it isn't shown as
+  -- part of the trip record until the user keeps it.
+  status text not null default 'draft' check (status in ('draft', 'kept')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -97,9 +107,34 @@ create table messages (
   id uuid primary key default gen_random_uuid(),
   role text not null check (role in ('user', 'assistant')),
   sender text, -- 'Bar' or 'Ori' for user messages
-  content text not null,
+  content text not null, -- plain-text rendering, used for display
+  content_json jsonb,    -- full Claude content blocks (text + tool_use + tool_result)
   created_at timestamptz default now()
 );
+
+-- Row Level Security ---------------------------------------------------------
+-- The anon key ships in the client bundle, so without RLS every table is
+-- world-readable and world-writable to anyone with the URL. These policies keep
+-- today's behaviour identical while putting the switch in place: to lock the app
+-- down later, replace `using (true)` here rather than changing app code.
+
+alter table trip            enable row level security;
+alter table flights         enable row level security;
+alter table accommodation   enable row level security;
+alter table activities      enable row level security;
+alter table recommendations enable row level security;
+alter table journal         enable row level security;
+alter table learnings       enable row level security;
+alter table messages        enable row level security;
+
+create policy "anon full access" on trip            for all using (true) with check (true);
+create policy "anon full access" on flights         for all using (true) with check (true);
+create policy "anon full access" on accommodation   for all using (true) with check (true);
+create policy "anon full access" on activities      for all using (true) with check (true);
+create policy "anon full access" on recommendations for all using (true) with check (true);
+create policy "anon full access" on journal         for all using (true) with check (true);
+create policy "anon full access" on learnings       for all using (true) with check (true);
+create policy "anon full access" on messages        for all using (true) with check (true);
 
 -- Seed the trip
 insert into trip (title, start_date, end_date, travelers, notes) values (
