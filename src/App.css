@@ -894,3 +894,21 @@
 .pack-add .btn-link:disabled {
   opacity: 0.4;
 }
+
+/* ── Crash detail (ErrorBoundary) ────────────────────────────────────────── */
+
+.crash-detail {
+  max-width: 100%;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--sand);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

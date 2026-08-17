@@ -26,6 +26,126 @@
     />
 
     <title>Salzburg 2026</title>
+
+    <!-- Blank-page insurance. Everything else that runs on this page is a module
+         script: if the bundle 404s, or throws while evaluating, React never
+         mounts, nothing reaches the console the phone can show you, and the page
+         is simply white.
+
+         That is exactly what a build made without VITE_SUPABASE_URL /
+         VITE_SUPABASE_ANON_KEY produces — the vars are inlined at build time, so
+         they become `undefined`, the throw in src/lib/supabase.js turns
+         statically reachable, the minifier drops the app as dead code, and the
+         deploy still goes green. vite.config.js now fails that build outright,
+         but a deploy built before that guard existed stays aliased until the
+         next successful one replaces it.
+
+         This runs before the bundle and paints the reason instead. It is
+         deliberately dependency-free — no bundle, no CSS: the tokens below carry
+         literal fallbacks so it still reads if index.css never arrived. -->
+    <script>
+      ;(function () {
+        var errors = []
+        var settled = false
+
+        function note(message) {
+          if (message && errors.indexOf(message) === -1) errors.push(message)
+        }
+
+        function show() {
+          var root = document.getElementById('root')
+          if (settled || !document.body || (root && root.children.length > 0)) return
+          settled = true
+
+          var panel = document.createElement('div')
+          panel.id = 'boot-failure'
+          panel.setAttribute(
+            'style',
+            'position:fixed;inset:0;overflow:auto;padding:32px 24px;' +
+              'background:var(--paper,#faf7f2);color:var(--ink,#1f1b16);' +
+              'font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);' +
+              'font-size:15px;line-height:1.5',
+          )
+
+          var title = document.createElement('h1')
+          title.textContent = "The app didn't start"
+          title.setAttribute(
+            'style',
+            'margin:0 0 12px;font-family:var(--serif,Georgia,serif);font-size:22px;font-weight:500',
+          )
+          panel.appendChild(title)
+
+          var lead = document.createElement('p')
+          lead.textContent = errors.length
+            ? 'It failed to load with:'
+            : 'It loaded but never rendered, and reported no error.'
+          lead.setAttribute('style', 'margin:0 0 12px;color:var(--muted,#6b635a)')
+          panel.appendChild(lead)
+
+          for (var i = 0; i < errors.length; i++) {
+            var line = document.createElement('pre')
+            line.textContent = errors[i]
+            line.setAttribute(
+              'style',
+              'margin:0 0 10px;padding:12px;border-radius:var(--r-sm,12px);' +
+                'background:var(--sand,#f4efe7);border:1px solid var(--line,#efe7da);' +
+                'font-family:var(--mono,ui-monospace,Menlo,monospace);font-size:12.5px;' +
+                'white-space:pre-wrap;word-break:break-word',
+            )
+            panel.appendChild(line)
+          }
+
+          var hint = document.createElement('p')
+          hint.textContent =
+            'If that mentions Supabase config, the deploy was built without ' +
+            'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. They are baked into the ' +
+            'bundle at build time, so set them for the Production environment in the ' +
+            'Vercel project settings and redeploy — an existing build will not pick ' +
+            'them up.'
+          hint.setAttribute('style', 'margin:8px 0 0;color:var(--muted,#6b635a)')
+          panel.appendChild(hint)
+
+          document.body.appendChild(panel)
+        }
+
+        // Capture phase so failed <script>/<link> loads are caught too. Those
+        // only get recorded — the fonts stylesheet failing is survivable and
+        // must not race the bundle into a false alarm. An actual uncaught throw
+        // means React will never mount, so that one paints straight away.
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event.target
+            if (target && target !== window && (target.src || target.href)) {
+              note('Failed to load ' + (target.src || target.href))
+              return
+            }
+            note(event.message || String(event.error || 'Unknown error'))
+            setTimeout(show, 0)
+          },
+          true,
+        )
+
+        window.addEventListener('unhandledrejection', function (event) {
+          note((event.reason && event.reason.message) || String(event.reason))
+          setTimeout(show, 0)
+        })
+
+        // Catch-all for a bundle that never arrives at all. Generous, because a
+        // cold cache on hotel wifi is slow, not broken.
+        window.addEventListener('load', function () {
+          setTimeout(show, 5000)
+        })
+
+        // main.jsx calls this once React has painted; after that the in-app error
+        // boundary owns failures and this must never fire.
+        window.__appMounted = function () {
+          settled = true
+          var panel = document.getElementById('boot-failure')
+          if (panel) panel.remove()
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

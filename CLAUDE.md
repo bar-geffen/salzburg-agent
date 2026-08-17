@@ -63,6 +63,11 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   not by a single layout — "Today" means nothing when the trip is weeks out.
 - `vite.config.js` mounts `api/chat.js` on the dev server behind a Vercel-compatible
   `req`/`res` shim, so `npm run dev` exercises the real serverless code path.
+- **The app must never present as a blank page.** Two layers enforce that: an
+  inline, dependency-free script in `index.html` paints the reason if the bundle
+  never loads or throws while evaluating, and `ErrorBoundary` catches throws
+  during render. `main.jsx` calls `window.__appMounted()` to stand the first one
+  down. If you move the mount, move that call with it.
 
 ## Source-of-truth rules
 
