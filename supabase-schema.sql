@@ -112,6 +112,33 @@ create table messages (
   created_at timestamptz default now()
 );
 
+-- Packing list
+-- No status column, unlike recommendations and journal: an unticked checkbox is
+-- already its own review state, so the agent's add_packing_item writes straight
+-- to the list (like add_activity) and `added_by` is how the UI marks those rows.
+--
+-- The 160 seed items are NOT here — they live in supabase-migration-002.sql, so
+-- there is only one copy of the list. On a fresh database, run this file and then
+-- 002: `create table if not exists` no-ops and the seed fires on the empty table.
+create table packing_items (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null check (category in (
+    'carry-on', 'amir-clothes', 'amir-diapers', 'amir-medical', 'ori', 'bar',
+    'hiking-gear', 'toiletries', 'practical', 'documents', 'toys-books'
+  )),
+  packed boolean not null default false,
+  packed_by text,                         -- 'Bar' or 'Ori' — who ticked it
+  added_by text not null default 'seed',  -- 'seed' | 'Bar' | 'Ori' | 'agent'
+  -- Position within a category. The list has a deliberate order (passports
+  -- first, snacks together) that alphabetical or created_at would destroy.
+  sort_order integer not null default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index packing_items_category_sort_idx on packing_items (category, sort_order);
+
 -- Row Level Security ---------------------------------------------------------
 -- The anon key ships in the client bundle, so without RLS every table is
 -- world-readable and world-writable to anyone with the URL. These policies keep
@@ -126,6 +153,7 @@ alter table recommendations enable row level security;
 alter table journal         enable row level security;
 alter table learnings       enable row level security;
 alter table messages        enable row level security;
+alter table packing_items   enable row level security;
 
 create policy "anon full access" on trip            for all using (true) with check (true);
 create policy "anon full access" on flights         for all using (true) with check (true);
@@ -135,6 +163,7 @@ create policy "anon full access" on recommendations for all using (true) with ch
 create policy "anon full access" on journal         for all using (true) with check (true);
 create policy "anon full access" on learnings       for all using (true) with check (true);
 create policy "anon full access" on messages        for all using (true) with check (true);
+create policy "anon full access" on packing_items   for all using (true) with check (true);
 
 -- Seed the trip
 insert into trip (title, start_date, end_date, travelers, notes) values (

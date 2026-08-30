@@ -7,12 +7,19 @@
 // just what it does. Models are conservative about reaching for tools, and the
 // trigger condition is what drives whether they actually get called.
 //
-// Note: nothing here writes a "live" row. Recommendations land as 'pending' and
-// journal entries as 'draft'; the user confirms them in the UI. That's why the
-// descriptions tell the agent to save liberally — a wrong save is one tap to
-// undo, whereas a missed one is lost.
+// Note: most of this writes a reviewable row rather than a live one.
+// Recommendations land as 'pending' and journal entries as 'draft'; the user
+// confirms them in the UI. That's why the descriptions tell the agent to save
+// liberally — a wrong save is one tap to undo, whereas a missed one is lost.
+//
+// add_activity and add_packing_item are the two exceptions, for the same reason:
+// there is no meaningful "pending" state for either. A booked time is booked,
+// and an unticked checkbox is already its own review. Both are visibly
+// attributed in the UI and removable in one tap.
 
 import { supabase } from './supabase'
+import { PACKING_CATEGORIES, categoryLabel } from './packing'
+import { addPackingItem } from './trip-data'
 
 export const TOOLS = [
   {
@@ -130,6 +137,37 @@ Unlike recommendations, this goes straight into the itinerary and the user sees 
       required: ['name', 'date'],
     },
   },
+
+  {
+    name: 'add_packing_item',
+    description: `Add something to the packing list.
+
+Call this whenever the conversation turns up a thing they'll need to bring — you suggested it, they realised it, or a plan you just made implies it. Read the packing strategy in your context first: the list is already built around six days of clothes and a mid-trip laundry, so don't re-add what's there.
+
+Examples:
+- "we should bring hand warmers for the Kitzsteinhorn day" → add it under hiking-gear
+- you recommend a spa afternoon and notice nobody has flip-flops → add them
+- "remind me to pack the good camera" → add it, don't just say you'll remember
+
+Pick the category the item actually belongs to, not the person who mentioned it: shared hiking kit is hiking-gear even if Ori asked. Amir's things have their own three categories. Anything going in hand luggage is carry-on.
+
+This goes straight onto the list rather than waiting for review, so add one item per call and keep the name short and concrete — it has to read as a checkbox on a phone. It's marked as added by you and it's one tap to remove, so err towards adding.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The item as it should read on the checklist, e.g. "Hand warmers x 4"',
+        },
+        category: {
+          type: 'string',
+          enum: PACKING_CATEGORIES.map(c => c.id),
+          description: 'Which section of the list it belongs in',
+        },
+      },
+      required: ['name', 'category'],
+    },
+  },
 ]
 
 // Each executor returns the string sent back to the model as the tool result.
@@ -191,6 +229,17 @@ const EXECUTORS = {
     })
     if (error) throw new Error(`Could not add activity: ${error.message}`)
     return `Added "${input.name}" to ${input.date}${input.time ? ` at ${input.time}` : ''}.`
+  },
+
+  // added_by: 'agent' is what puts the "Added by the agent" line on the row, so
+  // nothing you write here appears as though it was always on the list.
+  async add_packing_item(input) {
+    const row = await addPackingItem({
+      name: input.name,
+      category: input.category,
+      addedBy: 'agent',
+    })
+    return `Added "${row.name}" to the ${categoryLabel(row.category)} section of the packing list. Tell the user it's on there.`
   },
 }
 

@@ -9,11 +9,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FETCHERS,
+  addPackingItem,
+  deletePackingItem,
   fetchTripData,
   keepJournalEntry,
   keepRecommendation,
   rejectRecommendation,
   saveJournalText,
+  setPackingItemPacked,
 } from './trip-data'
 
 const EMPTY = {
@@ -23,6 +26,7 @@ const EMPTY = {
   activities: [],
   recommendations: [],
   journal: [],
+  packing: [],
 }
 
 export function useTripData() {
@@ -117,6 +121,23 @@ export function useTripData() {
     [applyRow],
   )
 
+  const setPacked = useCallback(
+    async (id, packed, by) => applyRow('packing', await setPackingItemPacked(id, packed, by)),
+    [applyRow],
+  )
+
+  // Appended rather than refetched: the row the server returned already carries
+  // the id and sort_order, and a refetch would collapse an open category.
+  const addPacking = useCallback(async (name, category, addedBy) => {
+    const row = await addPackingItem({ name, category, addedBy })
+    setData(prev => ({ ...prev, packing: [...prev.packing, row] }))
+  }, [])
+
+  const removePacking = useCallback(async id => {
+    await deletePackingItem(id)
+    setData(prev => ({ ...prev, packing: prev.packing.filter(p => p.id !== id) }))
+  }, [])
+
   return {
     ...data,
     loading,
@@ -128,5 +149,8 @@ export function useTripData() {
     rejectRec,
     keepJournal,
     saveJournal,
+    setPacked,
+    addPacking,
+    removePacking,
   }
 }

@@ -1,6 +1,7 @@
 import { TRAVELER_PROFILE } from '../data/traveler-profile'
 import { supabase } from './supabase'
 import { todayISO } from './dates'
+import { PACKING_CATEGORIES, PACKING_STRATEGY } from './packing'
 
 export async function buildSystemPrompt() {
   // Fetch all context from Supabase in parallel
@@ -12,6 +13,7 @@ export async function buildSystemPrompt() {
     { data: recommendations },
     { data: journal },
     { data: learnings },
+    { data: packing },
   ] = await Promise.all([
     supabase.from('trip').select('*').limit(1).single(),
     supabase.from('flights').select('*').order('date'),
@@ -22,6 +24,7 @@ export async function buildSystemPrompt() {
     // Drafts are unreviewed text the agent wrote; only kept entries are trip record.
     supabase.from('journal').select('*').eq('status', 'kept').order('date'),
     supabase.from('learnings').select('*').order('created_at'),
+    supabase.from('packing_items').select('*').order('category').order('sort_order'),
   ])
 
   // Local, not toISOString() — that's UTC, so in Israel between 00:00 and 03:00
@@ -33,6 +36,17 @@ export async function buildSystemPrompt() {
 
   const formatRec = r =>
     `- [${r.category}] ${r.name}${r.source ? ` (via ${r.source})` : ''}${r.visited ? ' ✓ visited' : ''}${r.rating ? ` ${r.rating}/5` : ''}${r.notes ? ` — ${r.notes}` : ''}`
+
+  // Only what's still unpacked. Listing all 160 rows would spend more context on
+  // ticked boxes than on the trip, and "what's left" is the only question anyone
+  // asks a packing list.
+  const packingLines = PACKING_CATEGORIES.map(({ id, label }) => {
+    const items = packing?.filter(p => p.category === id) ?? []
+    if (!items.length) return null
+    const left = items.filter(p => !p.packed)
+    if (!left.length) return `- ${label} — all ${items.length} packed.`
+    return `- ${label} — ${items.length - left.length} of ${items.length} packed. Still needed: ${left.map(p => p.name).join(', ')}`
+  }).filter(Boolean)
 
   const sections = [
     `# You are a personal travel agent for the ${trip?.title || 'Salzburg 2026'} trip.`,
@@ -75,6 +89,12 @@ export async function buildSystemPrompt() {
       ? learnings.map(l => `- [${l.type}] ${l.tag}: ${l.note}`).join('\n')
       : 'No learnings yet.',
     '',
+    `## Packing`,
+    `Strategy: ${PACKING_STRATEGY}`,
+    packingLines.length
+      ? `${packingLines.join('\n')}\n\nOnly unpacked items are listed. Both travellers tick things off from their own phones, so this reflects where they'd got to at the start of this message.`
+      : 'The packing list is empty.',
+    '',
     `## Weather`,
     `[Weather integration coming soon — not yet available]`,
     '',
@@ -83,7 +103,8 @@ export async function buildSystemPrompt() {
     `- Always check opening hours and booking requirements before recommending anything.`,
     `- Flag nap-time conflicts, stroller issues, and travel distances proactively.`,
     `- Use your tools as part of answering, not instead of answering. Save the place *and* reply.`,
-    `- Nothing you save goes live immediately: recommendations wait for Keep / Not this one, journal entries for Edit / Keep. So say "I've saved that for you to confirm", never "that's now on your itinerary". add_activity is the exception — it goes straight to the agenda, so only use it for things actually booked.`,
+    `- Nothing you save goes live immediately: recommendations wait for Keep / Not this one, journal entries for Edit / Keep. So say "I've saved that for you to confirm", never "that's now on your itinerary". add_activity and add_packing_item are the exceptions — those go straight to the agenda and the packing list, so only use add_activity for things actually booked.`,
+    `- Before suggesting anything to pack, read the packing strategy above. Six days of clothes is deliberate — there's a mid-trip laundry — so don't advise packing for eleven.`,
     `- Save liberally. A wrong save is one tap to undo; a place mentioned once and never recorded is gone.`,
     `- When planning a day, balance it against what they did yesterday and their energy.`,
     `- Respect the daily rhythm: out by 8:30–9am, lunch 12–14:00, nap 13–15:00, outside time 3–5pm, dinner 6–6:30pm.`,

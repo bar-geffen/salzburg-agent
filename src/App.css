@@ -731,3 +731,166 @@
   font-size: 17px;
   font-weight: 500;
 }
+
+/* ── Packing ─────────────────────────────────────────────────────────────── */
+
+.pack-strategy {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--prose);
+}
+
+/* Doubles as the disclosure control, so the tap target is the count itself
+   rather than a caret you have to aim at. */
+.pack-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--label);
+  flex: none;
+}
+
+.pack-caret {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.pack-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 4px 18px;
+}
+
+.pack-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0 12px;
+  padding: 2px 0;
+  border-top: 1px solid var(--line);
+}
+
+.pack-row:first-child {
+  border-top: none;
+}
+
+.pack-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* The only checkbox in the app — the design has no icons, so the tick is drawn
+   with a rotated border rather than a glyph or an SVG. */
+.pack-check input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1.5px solid var(--field);
+  /* Not --r-sm: 12px on a 20px box is a circle, and a circle reads as a radio
+     button. A squircle is the only shape that says "tick as many as you like". */
+  border-radius: 7px;
+  background: var(--card);
+}
+
+.pack-check input:checked {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.pack-check input:checked::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--paper);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.pack-check input:disabled {
+  opacity: 0.5;
+}
+
+.pack-name {
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.pack-row--done .pack-name {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* btn-link is accent because in Saved there's one per card. Here there's one
+   per row, and a column of accent-orange "Remove"s outshouts the item names. */
+.pack-remove {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  opacity: 0;
+}
+
+/* No hover on a phone, so Remove stays faintly visible there instead. */
+@media (hover: hover) {
+  .pack-row:hover .pack-remove,
+  .pack-remove:focus-visible {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .pack-remove {
+    opacity: 0.55;
+  }
+}
+
+/* Second grid row, under the name — never beside it, or long items reflow. */
+.pack-note {
+  grid-column: 1 / -1;
+  padding: 0 0 8px 32px;
+}
+
+.pack-add {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.pack-input {
+  flex: 1;
+  min-height: 44px;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--sans);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.pack-input::placeholder {
+  color: var(--muted);
+}
+
+.pack-add .btn-link:disabled {
+  opacity: 0.4;
+}

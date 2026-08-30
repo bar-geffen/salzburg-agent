@@ -5,6 +5,7 @@ const TABS = [
   { id: 'chat', label: 'Chat' },
   { id: 'agenda', label: 'Agenda' },
   { id: 'saved', label: 'Saved' },
+  { id: 'packing', label: 'Pack' },
 ]
 
 export default function TabBar({ value, onChange }) {

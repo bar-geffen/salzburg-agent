@@ -94,9 +94,10 @@ what the other person did. Chat messages still need a reload.
 **Still open (PR 3):** Supabase realtime subscriptions. Two prerequisites, both
 noted because they're easy to miss:
 
-- **`supabase-migration-002.sql` must add the tables to the `supabase_realtime`
-  publication.** No file in the repo does this yet, and without it realtime
-  silently does nothing.
+- **`supabase-migration-003.sql` must add the tables to the `supabase_realtime`
+  publication** — including `packing_items`, so a tick lands on the other phone.
+  No file in the repo does this yet, and without it realtime silently does
+  nothing. (002 was taken by the packing list.)
 - A **connection indicator** in the header, so a dead websocket (or a forgotten
   migration) is visible rather than mysterious.
 
