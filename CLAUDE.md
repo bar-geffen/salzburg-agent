@@ -21,6 +21,7 @@ There is no test suite.
 |---|---|
 | `salzburg-app-session1-spec.md` | What we're building and why. The product spec. |
 | `session1-gaps.md` | What the spec promises that the code doesn't do yet, with the decisions needed to close each gap. Start here before implementing. |
+| `session2-spec.md` | The next three PRs — auth, chat sessions, live flight status — in build order. Supersedes gap 8, and the realtime and day-plan items in `session1-gaps.md`. |
 | `design-spec.md` | Design tokens, screens, patterns. |
 | `src/data/traveler-profile.js` | Long-term traveller preferences, injected into every system prompt. |
 
