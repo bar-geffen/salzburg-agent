@@ -14,18 +14,18 @@
   border-bottom: 1px solid var(--line);
 }
 
-.app-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.app-title-text {
+.app-titlebar {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.app-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .title {
@@ -35,6 +35,7 @@
 }
 
 .subtitle {
+  display: block;
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -57,6 +58,26 @@
 .refresh[disabled] {
   color: var(--label);
   cursor: default;
+}
+
+.header-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex: none;
+}
+
+/* Same mono-caps treatment as Refresh, but muted: design-spec.md reserves the
+ * accent for times, links and one primary action per screen, and Refresh is it. */
+.signout {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--label);
+  min-height: 44px;
+  padding: 0 4px;
+  flex: none;
 }
 
 /* ── Tab bar ─────────────────────────────────────────────────────────────── */
@@ -431,34 +452,6 @@
   border-top: 1px solid var(--line);
 }
 
-/* Design: a Bar/Ori toggle sits above the input, so whoever is holding the
- * phone can switch without clearing storage. */
-.who {
-  display: flex;
-  gap: 4px;
-  align-self: flex-start;
-  background: var(--track);
-  border-radius: var(--r-pill);
-  padding: 3px;
-}
-
-.who button {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--label);
-  padding: 6px 12px;
-  border-radius: var(--r-pill);
-  min-height: 32px;
-}
-
-.who button.is-on {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgb(31 27 22 / 8%);
-}
-
 .composer-row {
   display: flex;
   gap: 8px;
@@ -691,7 +684,10 @@
   gap: 10px;
 }
 
-/* ── Sender gate (first run only) ────────────────────────────────────────── */
+/* ── Auth gates ──────────────────────────────────────────────────────────── */
+/* One shell for all three pre-app screens: the loading splash, sign-in, and
+ * "not on this trip". Design has no screen for these, so this reuses the
+ * existing gate treatment rather than inventing tokens. */
 
 .gate {
   height: 100dvh;
@@ -730,6 +726,26 @@
   background: var(--card);
   font-size: 17px;
   font-weight: 500;
+}
+
+.gate-buttons button[disabled] {
+  color: var(--label);
+  cursor: default;
+}
+
+/* The address that isn't allowlisted. Mono so a typo'd or unexpected account is
+ * legible at a glance — that's the entire job of this screen. */
+.gate-email {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.gate-error {
+  margin-top: 18px;
+  font-size: 15px;
+  color: var(--accent);
 }
 
 /* ── Packing ─────────────────────────────────────────────────────────────── */

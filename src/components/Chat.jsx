@@ -7,8 +7,6 @@ import ReactMarkdown from 'react-markdown'
 
 export default function Chat({
   messages,
-  sender,
-  onSenderChange,
   input,
   onInputChange,
   loading,
@@ -65,21 +63,10 @@ export default function Chat({
         <div ref={endRef} />
       </div>
 
+      {/* The design put a Bar/Ori toggle here, from when the app was one phone
+          passed between two people. The session decides now, so it's gone —
+          msg.sender still drives the bubble tint and the name tag above. */}
       <form className="composer" onSubmit={onSubmit}>
-        {/* Design: a Bar/Ori toggle above the input. Two people, one phone. */}
-        <div className="who">
-          {['Bar', 'Ori'].map(name => (
-            <button
-              key={name}
-              type="button"
-              className={sender === name ? 'is-on' : undefined}
-              onClick={() => onSenderChange(name)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-
         <div className="composer-row">
           <input
             type="text"

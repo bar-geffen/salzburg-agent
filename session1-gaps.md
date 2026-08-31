@@ -5,8 +5,9 @@ by how much else depends on it. Items marked **Decision** need a human answer;
 the rest are just build work.
 
 **Resolved so far:** gaps 1 (tools), 2 (pending state), 3 (tool-block persistence),
-4 (tool loop), 6 (tabs + design system) and 7 (RLS) are done.
-Remaining: **5** (realtime, PR 3), **8** (auth), and the structured day plan (PR 2).
+4 (tool loop), 6 (tabs + design system), 7 (RLS) and 8 (auth) are done.
+Remaining: **5** (realtime, PR 3) and the structured day plan (PR 2) — both now
+tracked in `session2-spec.md`, which supersedes this file for what's next.
 
 ---
 
@@ -120,7 +121,7 @@ What the Agenda shows is driven by trip phase — before / during / after — be
 alternative — say it in chat — and a disabled button is a promise with "not yet"
 attached. Adding them means building forms, which is a bigger change than it looks.
 
-## 7. Database access — RLS enabled (migration 001), PIN still open
+## 7. Database access — closed by session 2, PR 4
 
 The anon key is in the client bundle, so "deploy on an unguessable URL" protects the
 page, not the data: anyone who loads the app can read and write every table.
@@ -129,9 +130,10 @@ page, not the data: anyone who loads the app can read and write every table.
 `using (true)` policy. Practical exposure is unchanged, but access is now controlled
 in one place — tightening it means editing the policy, not the app.
 
-**Still open:** a real auth gate — see gap 8, which supersedes the PIN idea.
+**Closed (session 2, PR 4):** the permissive policy is gone. All nine tables now
+call `public.is_trip_member()`. The PIN idea was never built and is now moot.
 
-## 8. No auth — deferred deliberately
+## 8. No auth — closed by session 2, PR 4
 
 The sender gate is `localStorage` only: it picks a name for message attribution, it
 is not a login. Anyone with the URL can read and write everything, including the
@@ -143,6 +145,12 @@ comes from, the Supabase project's auth config, and a redirect URL per environme
 Bundling it into the design-system rewrite would have made that diff unreviewable.
 
 It supersedes the PIN gate in gap 7. Worth doing before the trip.
+
+**Closed (session 2, PR 4).** Google sign-in via Supabase Auth, restricted to two
+addresses by `public.is_trip_member()`. One detail landed differently from the note
+above: the policies check the **email claim**, not `auth.uid() is not null` — the
+latter would have let any Google account in the world read the trip. `sender` now
+comes from the session rather than `localStorage`.
 
 ---
 

@@ -1,8 +1,14 @@
 -- Run this in your Supabase SQL Editor (supabase.com → your project → SQL Editor)
 --
 -- This is the full current schema, for a fresh database. If you already ran an
--- earlier version of this file, don't re-run it — apply supabase-migration-001.sql
--- instead, which adds the same changes to an existing database.
+-- earlier version of this file, don't re-run it — apply the numbered migrations
+-- instead, which add the same changes to an existing database:
+--
+--   001  status columns on recommendations and journal
+--   002  the packing_items table and its 160 seed items
+--   003  Google auth: is_trip_member() and the nine policy swaps
+--
+-- On a fresh database: run this file, then 002 for the packing seed.
 
 -- Trip profile
 create table trip (
@@ -141,9 +147,26 @@ create index packing_items_category_sort_idx on packing_items (category, sort_or
 
 -- Row Level Security ---------------------------------------------------------
 -- The anon key ships in the client bundle, so without RLS every table is
--- world-readable and world-writable to anyone with the URL. These policies keep
--- today's behaviour identical while putting the switch in place: to lock the app
--- down later, replace `using (true)` here rather than changing app code.
+-- world-readable and world-writable to anyone with the URL. Access is gated on
+-- the email claim in the Supabase Auth JWT, checked by one function that all
+-- nine policies call — an address changes in exactly one place.
+--
+-- Checked on the email rather than auth.uid() so it survives a user being
+-- deleted and signing in again with a new user id. coalesce() keeps it false
+-- (not null) for an anonymous request, where there is no JWT at all.
+--
+-- The app's sign-in screen mirrors this list in src/lib/auth.js, but that copy
+-- is convenience only — this is the enforcement. A Google account that isn't
+-- listed here authenticates successfully and then reads zero rows from
+-- everything, which is why App.jsx has a "not on this trip" screen.
+
+create or replace function public.is_trip_member() returns boolean
+language sql stable as $$
+  select coalesce(auth.jwt() ->> 'email', '') in (
+    'bar.geffen2@gmail.com',
+    'oriorio@gmail.com'
+  )
+$$;
 
 alter table trip            enable row level security;
 alter table flights         enable row level security;
@@ -155,15 +178,22 @@ alter table learnings       enable row level security;
 alter table messages        enable row level security;
 alter table packing_items   enable row level security;
 
-create policy "anon full access" on trip            for all using (true) with check (true);
-create policy "anon full access" on flights         for all using (true) with check (true);
-create policy "anon full access" on accommodation   for all using (true) with check (true);
-create policy "anon full access" on activities      for all using (true) with check (true);
-create policy "anon full access" on recommendations for all using (true) with check (true);
-create policy "anon full access" on journal         for all using (true) with check (true);
-create policy "anon full access" on learnings       for all using (true) with check (true);
-create policy "anon full access" on messages        for all using (true) with check (true);
-create policy "anon full access" on packing_items   for all using (true) with check (true);
+-- `using` governs reads and which rows an update may touch; `with check`
+-- governs what a write may leave behind. Both are required — a policy with only
+-- `using` leaves the table writable by anyone.
+create policy "trip members" on trip            for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on flights         for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on accommodation   for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on activities      for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on recommendations for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on journal         for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on learnings       for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on messages        for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on packing_items   for all using (public.is_trip_member()) with check (public.is_trip_member());
+
+-- Seeds ----------------------------------------------------------------------
+-- These run in the SQL editor, which is not subject to RLS, so they insert fine
+-- even though the policies above would reject the same statement from the app.
 
 -- Seed the trip
 insert into trip (title, start_date, end_date, travelers, notes) values (
