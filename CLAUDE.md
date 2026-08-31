@@ -42,7 +42,7 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   and `stop_reason`; it does not extract text and does not run the tool loop. The
   client owns the loop, because the tools write to Supabase and the client already
   has a session there.
-- `src/lib/build-system-prompt.js` assembles the system prompt from seven tables in
+- `src/lib/build-system-prompt.js` assembles the system prompt from eight tables in
   parallel. Adding a table means adding a section here too.
 - `src/lib/tools.js` holds the tool definitions *and* their executors. The tools
   write to Supabase, so they run client-side; `sendMessage` in `App.jsx` loops on
@@ -50,7 +50,7 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   in-memory — only the user's message and the final reply are persisted. Don't use
   `strict: true` on a tool; structured outputs aren't supported on the model in
   `api/chat.js`.
-- `src/lib/trip-data.js` owns every read of the trip tables **and** the four
+- `src/lib/trip-data.js` owns every read of the trip tables **and** the seven
   user-initiated mutations. `src/lib/use-trip-data.js` wraps it in a hook that
   loads once and refetches on focus. Tabs are presentational; chat state and the
   tool loop stay in `App.jsx`, so switching tabs mid-turn can't unmount an
@@ -91,6 +91,16 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
   recommendations under a separate "Awaiting Review" heading). If you add a write
   path, respect this — don't insert straight to `kept`.
+- **`activities` and `packing_items` are the two exceptions**, and deliberately so:
+  neither has a `status`, because neither has a meaningful pending state (a booked
+  time is booked; an unticked checkbox is already its own review). `add_activity`
+  and `add_packing_item` write live rows. `packing_items.added_by` is what keeps
+  that honest — the UI marks agent-written items so nothing appears silently.
+- **The packing list's prose lives in `src/lib/packing.js`, its items in Supabase.**
+  `PACKING_STRATEGY` and the category labels are read by both `Packing.jsx` and
+  `build-system-prompt.js`; the 160 items are seeded once by
+  `supabase-migration-002.sql` and are mutable from then on. Don't add a JS copy of
+  the items — that's the `traveler-profile.md` drift again.
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (client) and
   `ANTHROPIC_API_KEY` (server only — deliberately unprefixed so Vite never exposes
   it to the browser).

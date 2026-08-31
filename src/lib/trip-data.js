@@ -65,6 +65,31 @@ export async function fetchJournal() {
   )
 }
 
+/**
+ * Ordered the way the list is meant to be read, not alphabetically.
+ *
+ * Tolerates the table not existing. The code ships before someone pastes
+ * supabase-migration-002.sql into the SQL editor, and fetchTripData runs every
+ * read in one Promise.all — so without this, a missing packing_items would take
+ * the Agenda and Saved tabs down with it. An empty list is the honest answer,
+ * and the Pack tab's empty state says which file to run.
+ */
+export async function fetchPacking() {
+  const { data, error } = await supabase
+    .from('packing_items')
+    .select('*')
+    .order('category')
+    .order('sort_order')
+
+  // 42P01 is Postgres undefined_table; PGRST205 is PostgREST failing to find it
+  // in the schema cache, which is what you actually get through the REST API.
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') return []
+    throw new Error(`Couldn't load the packing list: ${error.message}`)
+  }
+  return data
+}
+
 export const FETCHERS = {
   trip: fetchTrip,
   flights: fetchFlights,
@@ -72,18 +97,21 @@ export const FETCHERS = {
   activities: fetchActivities,
   recommendations: fetchRecommendations,
   journal: fetchJournal,
+  packing: fetchPacking,
 }
 
 export async function fetchTripData() {
-  const [trip, flights, accommodation, activities, recommendations, journal] = await Promise.all([
-    fetchTrip(),
-    fetchFlights(),
-    fetchAccommodation(),
-    fetchActivities(),
-    fetchRecommendations(),
-    fetchJournal(),
-  ])
-  return { trip, flights, accommodation, activities, recommendations, journal }
+  const [trip, flights, accommodation, activities, recommendations, journal, packing] =
+    await Promise.all([
+      fetchTrip(),
+      fetchFlights(),
+      fetchAccommodation(),
+      fetchActivities(),
+      fetchRecommendations(),
+      fetchJournal(),
+      fetchPacking(),
+    ])
+  return { trip, flights, accommodation, activities, recommendations, journal, packing }
 }
 
 // ── mutations (user-initiated only) ────────────────────────────────────────
@@ -122,4 +150,50 @@ export async function saveJournalText(id, whatWeDid) {
       .single(),
     "Couldn't save your edit",
   )
+}
+
+/**
+ * Ticking an item records who did it, so the other phone shows "Packed by Ori"
+ * rather than a box that changed on its own. Unticking clears the name.
+ */
+export async function setPackingItemPacked(id, packed, by) {
+  return unwrap(
+    await supabase
+      .from('packing_items')
+      .update({ packed, packed_by: packed ? by : null, ...touch() })
+      .eq('id', id)
+      .select()
+      .single(),
+    packed ? "Couldn't tick that off" : "Couldn't untick that",
+  )
+}
+
+/** Lands at the end of its category — sort_order 0 sorts above the seed rows. */
+export async function addPackingItem({ name, category, addedBy }) {
+  const { data: last } = await supabase
+    .from('packing_items')
+    .select('sort_order')
+    .eq('category', category)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return unwrap(
+    await supabase
+      .from('packing_items')
+      .insert({ name, category, added_by: addedBy, sort_order: (last?.sort_order ?? 0) + 1 })
+      .select()
+      .single(),
+    "Couldn't add that",
+  )
+}
+
+/**
+ * A real delete, unlike rejectRecommendation. The soft delete there exists to
+ * stop the agent re-proposing something you've already turned down; nobody
+ * needs to be protected from the agent suggesting socks twice.
+ */
+export async function deletePackingItem(id) {
+  const { error } = await supabase.from('packing_items').delete().eq('id', id)
+  if (error) throw new Error(`Couldn't remove that: ${error.message}`)
 }

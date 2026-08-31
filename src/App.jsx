@@ -8,6 +8,7 @@ import TabBar from './components/TabBar'
 import Chat from './components/Chat'
 import Agenda from './components/Agenda'
 import Saved from './components/Saved'
+import Packing from './components/Packing'
 import './App.css'
 
 // Each round trip is one API call, so this bounds cost and latency as much as it
@@ -19,7 +20,7 @@ const MAX_TOOL_ITERATIONS = 5
 // timeout, and hotel wifi drops connections without closing them.
 const REQUEST_TIMEOUT_MS = 60_000
 
-const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved' }
+const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved', packing: 'Packing' }
 
 function App() {
   const [messages, setMessages] = useState([])
@@ -30,7 +31,7 @@ function App() {
   const [tab, setTab] = useState('chat')
   const [online, setOnline] = useState(() => navigator.onLine)
 
-  // One load and one refresh path for all six trip tables, held here so tabs
+  // One load and one refresh path for all seven trip tables, held here so tabs
   // don't refetch on every switch and the header can show Saved's counts while
   // you're looking at Chat.
   const trip = useTripData()
@@ -178,10 +179,12 @@ function App() {
 
       setMessages(prev => [...prev, savedAssistant])
 
-      // The agent may have just written a recommendation or journal draft.
+      // The agent may have just written a recommendation, journal draft, or
+      // packing item.
       trip.refreshTable('recommendations')
       trip.refreshTable('journal')
       trip.refreshTable('activities')
+      trip.refreshTable('packing')
     } catch (err) {
       console.error('Failed to send message:', err)
       setError(
@@ -214,10 +217,17 @@ function App() {
 
   const pendingCount = trip.recommendations.filter(r => r.status === 'pending').length
   const keptCount = trip.recommendations.filter(r => r.status === 'kept').length
+  const toPack = trip.packing.filter(p => !p.packed).length
   const subtitle =
     tab === 'saved'
       ? [pendingCount > 0 && `${pendingCount} new`, `${keptCount} kept`].filter(Boolean).join(' · ')
-      : tripSubtitle(trip.trip, today)
+      : tab === 'packing'
+        ? trip.packing.length === 0
+          ? 'Nothing on the list'
+          : toPack === 0
+            ? 'All packed'
+            : `${toPack} to pack`
+        : tripSubtitle(trip.trip, today)
 
   return (
     <div className="app">
@@ -278,6 +288,19 @@ function App() {
           onRetry={trip.refreshAll}
           onKeep={trip.keepRec}
           onReject={trip.rejectRec}
+        />
+      )}
+
+      {tab === 'packing' && (
+        <Packing
+          packing={trip.packing}
+          sender={sender}
+          loading={trip.loading}
+          error={trip.error}
+          onRetry={trip.refreshAll}
+          onSetPacked={trip.setPacked}
+          onAdd={trip.addPacking}
+          onRemove={trip.removePacking}
         />
       )}
     </div>
