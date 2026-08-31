@@ -2,6 +2,15 @@
 --
 -- Run this in the Supabase SQL Editor (SQL Editor → New query → paste → Run).
 --
+-- HOW YOU COPY THIS FILE MATTERS. It contains Hebrew, ⭐, €, ×, and en-dashes.
+-- `cat file | pbcopy` silently mangles all of them when LANG is unset: pbcopy
+-- reads its input as MacRoman, so משטח lands on the clipboard as ◊û◊©◊ò◊ó and the
+-- seed inserts that. Copy from a text editor, or use:
+--
+--   osascript -e 'set the clipboard to (read POSIX file "'"$PWD"'/supabase-migration-002.sql" as «class utf8»)'
+--
+-- The verification query at the bottom checks for this — read its output.
+--
 -- Safe to run as many times as you like. The table creation is guarded, the RLS
 -- policy is dropped before it is created, and the seed only fires when the table
 -- is completely empty — so a second run is a no-op rather than 160 duplicates.
@@ -248,3 +257,16 @@ select category, count(*) as items, count(*) filter (where packed) as packed
 from packing_items
 group by category
 order by category;
+
+-- Then this one. Both counts must be non-zero. If hebrew_items is 0 the paste
+-- was decoded as MacRoman on the way to the clipboard and every non-ASCII
+-- character in the list is corrupt — see the note at the top of this file.
+-- Recover with `delete from packing_items;` and re-run this file, copied
+-- properly. (mojibake_items should be 0; it catches the same damage directly.)
+
+select
+  count(*) filter (where name ~ '[\u0590-\u05FF]') as hebrew_items,   -- expect 5
+  count(*) filter (where name like '%⭐%')          as starred_items,  -- expect 14
+  count(*) filter (where name like '%◊%'
+                      or name like '%‚%')           as mojibake_items  -- expect 0
+from packing_items;
