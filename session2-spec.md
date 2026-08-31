@@ -29,7 +29,7 @@ not a login. RLS is enabled but every policy is `using (true)`, and the anon key
 inlined into the client bundle — this is now demonstrated, not theoretical: grep the
 deployed JS and the key is there in plaintext.
 
-So anyone with the URL can read and write all eight tables. That includes
+So anyone with the URL can read and write all nine tables. That includes
 `accommodation`, which is where a door code goes, and `journal`, which is a diary.
 
 ### What to build
@@ -41,9 +41,9 @@ RLS as the enforcement layer and the UI as convenience only.
 spec below uses `<ori-email>` — it has to be the address on the Google account they
 actually sign in with, which may not be the one you'd guess.
 
-#### Enforcement: one function, eight policies
+#### Enforcement: one function, nine policies
 
-Don't hardcode the emails into eight policies — that's eight places to edit when
+Don't hardcode the emails into nine policies — that's nine places to edit when
 someone's address changes. Put the allowlist in a single SQL function and have every
 policy call it:
 
@@ -57,7 +57,7 @@ language sql stable as $$
 $$;
 ```
 
-Then, for each of the eight tables, replace the permissive policy:
+Then, for each of the nine tables, replace the permissive policy:
 
 ```sql
 drop policy "anon full access" on messages;
@@ -112,7 +112,7 @@ Consistent with the rest of this project, some of this is paste-work:
 3. **Supabase → Authentication → URL Configuration** — Site URL is the production
    domain. Add redirect URLs for `http://localhost:5173` (dev) and the production
    domain.
-4. **`supabase-migration-002.sql`** — the function and the eight policy swaps. Run it
+4. **`supabase-migration-003.sql`** — the function and the nine policy swaps. Run it
    by hand, and update `supabase-schema.sql` to match.
 
 **Trap: preview deployments.** Vercel preview URLs contain the branch name and change
@@ -153,8 +153,8 @@ Sessions bound it.
 ### Why this is cheap — and the thing not to break
 
 The agent's memory is **not** the transcript. `buildSystemPrompt()` rebuilds from
-seven tables on every single message: learnings, kept recommendations, journal,
-activities, flights, accommodation, trip. Starting a new session therefore loses
+eight tables on every single message: learnings, kept recommendations, journal,
+activities, flights, accommodation, packing, trip. Starting a new session therefore loses
 nothing durable — everything that mattered was extracted into a table by a tool at
 the time it was said.
 
@@ -208,8 +208,10 @@ using `is_trip_member()` from PR 4.
 
 ### UI
 
-The design has three tabs and no icons, and `design-spec.md` is the source of truth —
-don't invent a fourth tab. Minimal fit within the existing shell:
+The design has four tabs (Chat, Agenda, Saved, Pack) and no icons, and
+`design-spec.md` is the source of truth — don't add a fifth for this. Sessions are a
+way to organise the Chat tab, not a place of their own. Minimal fit within the
+existing shell:
 
 - On the Chat tab, the header subtitle becomes the current session's title.
 - Tapping it opens a list of sessions (title, relative date, message count) with
@@ -356,7 +358,8 @@ last-known with its age rather than an error or a blank.
 ## Cross-cutting
 
 **Migrations.** Numbered, run by hand in the Supabase SQL editor, per the existing
-convention: 002 for auth, 003 for sessions, 004 for flight status. Every one updates
+convention: 003 for auth, 004 for sessions, 005 for flight status — 002 is taken by
+the packing list. Every one updates
 `supabase-schema.sql` too, and every one gets called out in the PR description,
 because someone has to paste it in.
 
