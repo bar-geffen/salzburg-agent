@@ -7,8 +7,11 @@
 --   001  status columns on recommendations and journal
 --   002  the packing_items table and its 160 seed items
 --   003  Google auth: is_trip_member() and the nine policy swaps
+--   004  chat_sessions, messages.session_id, and the backfill of old messages
 --
--- On a fresh database: run this file, then 002 for the packing seed.
+-- On a fresh database: run this file, then 002 for the packing seed. 004's
+-- backfill is a migration-only concern: a fresh database has no messages to
+-- orphan, and session_id is not null here from the start.
 
 -- Trip profile
 create table trip (
@@ -108,15 +111,34 @@ create table learnings (
   created_at timestamptz default now()
 );
 
+-- Chat sessions
+-- One shared history, organised into threads. Sessions are what bound the
+-- transcript sent to the API on each turn; the agent's memory is the tables
+-- below, rebuilt on every message, so a new session loses nothing durable.
+--
+-- Shared, not per-user: `started_by` is a label, not an owner.
+create table chat_sessions (
+  id uuid primary key default gen_random_uuid(),
+  title text, -- nullable: a session exists before it has a name
+  started_by text,
+  created_at timestamptz default now(),
+  -- The list sorts on this descending. No trigger: the client bumps it after
+  -- each insert, the way updated_at is handled elsewhere.
+  last_message_at timestamptz default now()
+);
+
 -- Chat messages
 create table messages (
   id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references chat_sessions(id) on delete cascade,
   role text not null check (role in ('user', 'assistant')),
   sender text, -- 'Bar' or 'Ori' for user messages
   content text not null, -- plain-text rendering, used for display
   content_json jsonb,    -- full Claude content blocks (text + tool_use + tool_result)
   created_at timestamptz default now()
 );
+
+create index messages_session_created_idx on messages (session_id, created_at);
 
 -- Packing list
 -- No status column, unlike recommendations and journal: an unticked checkbox is
@@ -149,7 +171,7 @@ create index packing_items_category_sort_idx on packing_items (category, sort_or
 -- The anon key ships in the client bundle, so without RLS every table is
 -- world-readable and world-writable to anyone with the URL. Access is gated on
 -- the email claim in the Supabase Auth JWT, checked by one function that all
--- nine policies call — an address changes in exactly one place.
+-- ten policies call — an address changes in exactly one place.
 --
 -- Checked on the email rather than auth.uid() so it survives a user being
 -- deleted and signing in again with a new user id. coalesce() keeps it false
@@ -177,6 +199,7 @@ alter table journal         enable row level security;
 alter table learnings       enable row level security;
 alter table messages        enable row level security;
 alter table packing_items   enable row level security;
+alter table chat_sessions   enable row level security;
 
 -- `using` governs reads and which rows an update may touch; `with check`
 -- governs what a write may leave behind. Both are required — a policy with only
@@ -190,6 +213,7 @@ create policy "trip members" on journal         for all using (public.is_trip_me
 create policy "trip members" on learnings       for all using (public.is_trip_member()) with check (public.is_trip_member());
 create policy "trip members" on messages        for all using (public.is_trip_member()) with check (public.is_trip_member());
 create policy "trip members" on packing_items   for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on chat_sessions   for all using (public.is_trip_member()) with check (public.is_trip_member());
 
 -- Seeds ----------------------------------------------------------------------
 -- These run in the SQL editor, which is not subject to RLS, so they insert fine

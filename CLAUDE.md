@@ -2,7 +2,7 @@
 
 Mobile-first AI travel agent for an 11-night Salzburg trip (Sep 15–26, 2026), used
 by two travellers (Bar + Ori) from their own phones. Shared trip data, shared chat
-history, no auth. The value is the agent's context and reasoning — the UI is
+history, behind Google sign-in restricted to the two of them. The value is the agent's context and reasoning — the UI is
 deliberately thin.
 
 ## Commands
@@ -56,6 +56,17 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   loads once and refetches on focus. Tabs are presentational; chat state and the
   tool loop stay in `App.jsx`, so switching tabs mid-turn can't unmount an
   in-flight request.
+- `src/lib/chat-sessions.js` owns `chat_sessions` and `messages`. A session is
+  the unit the chat is divided into, and the only thing it bounds is the
+  transcript posted to `/api/chat` — the agent's memory is still
+  `buildSystemPrompt()`, rebuilt from the tables on every turn, so a new session
+  loses nothing durable. **Don't feed one session's transcript into another's
+  prompt.** If something has to survive a session boundary, the fix is a tool
+  that writes it to a table. Sessions are created lazily on the first message,
+  named from the first exchange by one short tool-less call to `/api/chat`, and
+  fall back to the first 40 characters of the opening message. `fetchSessions()`
+  returns `null` — not `[]` — when the table is missing, and `App.jsx` reads that
+  as "migration 004 hasn't been pasted yet" and shows one undivided thread.
 - `src/lib/auth.js` is the only module that knows about `supabase.auth`:
   `signInWithGoogle`, `signOut`, a `useSession()` hook over `onAuthStateChange`, and
   `displayNameFor(session)`. `App.jsx` branches on it into three states — signed
@@ -102,7 +113,7 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   deltas for a database that already ran an earlier version. If you change the
   schema, update `supabase-schema.sql` *and* add a numbered migration *and* say so
   in your summary, because someone has to paste it in.
-- **RLS is the access gate, and it is the only one.** All nine tables carry one
+- **RLS is the access gate, and it is the only one.** All ten tables carry one
   policy that calls `public.is_trip_member()`, which checks the email claim in the
   Supabase Auth JWT against two addresses. The anon key still ships in the client
   bundle and is now worth nothing on its own — an unauthenticated request reads zero

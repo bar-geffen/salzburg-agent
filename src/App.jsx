@@ -1,12 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { displayNameFor, signInWithGoogle, signOut, useSession } from './lib/auth'
 import { buildSystemPrompt } from './lib/build-system-prompt'
+import {
+  createSession,
+  fallbackTitle,
+  fetchAllMessages,
+  fetchMessages,
+  fetchSessions,
+  generateTitle,
+  setSessionTitle as saveSessionTitle,
+  touchSession,
+} from './lib/chat-sessions'
 import { TOOLS, executeTool } from './lib/tools'
 import { useTripData } from './lib/use-trip-data'
 import { todayISO, tripSubtitle } from './lib/dates'
 import TabBar from './components/TabBar'
 import Chat from './components/Chat'
+import SessionList from './components/SessionList'
 import Agenda from './components/Agenda'
 import Saved from './components/Saved'
 import Packing from './components/Packing'
@@ -24,8 +35,8 @@ const REQUEST_TIMEOUT_MS = 60_000
 const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved', packing: 'Packing' }
 
 // The app proper. Mounted only for an allowlisted session, which is what keeps
-// useTripData and loadMessages from firing for a signed-out visitor and coming
-// back with empty arrays that look like "no trip yet".
+// useTripData and the chat loads from firing for a signed-out visitor and
+// coming back with empty arrays that look like "no trip yet".
 function TripApp({ sender }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -34,14 +45,70 @@ function TripApp({ sender }) {
   const [tab, setTab] = useState('chat')
   const [online, setOnline] = useState(() => navigator.onLine)
 
+  // null means sessions aren't available — supabase-migration-004.sql hasn't
+  // been run yet. Everything below falls back to one undivided thread in that
+  // case, which is exactly how the app behaved before this feature.
+  const [sessions, setSessions] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
+  const [sessionTitle, setSessionTitle] = useState('')
+  const [showSessions, setShowSessions] = useState(false)
+
+  // Three mirrors of state, for the code that can't see a fresh render: the
+  // send path (which would otherwise build the API history from a stale
+  // closure — the bug at the old App.jsx:85) and the focus listener, which is
+  // registered once and closes over whatever was true then.
+  const messagesRef = useRef(messages)
+  const loadingRef = useRef(loading)
+  const sessionIdRef = useRef(sessionId)
+  useEffect(() => {
+    messagesRef.current = messages
+    loadingRef.current = loading
+    sessionIdRef.current = sessionId
+  }, [messages, loading, sessionId])
+
   // One load and one refresh path for all seven trip tables, held here so tabs
   // don't refetch on every switch and the header can show Saved's counts while
   // you're looking at Chat.
   const trip = useTripData()
   const today = todayISO()
 
+  // Open the most recently used session on mount. A brand new database has no
+  // sessions at all: sessionId stays null and the first message creates one.
   useEffect(() => {
-    loadMessages()
+    let alive = true
+    ;(async () => {
+      // null from fetchSessions means the table isn't there yet. A *thrown*
+      // error lands in the same place deliberately: one undivided thread is a
+      // better failure than a blank chat, and the next focus or Refresh puts
+      // the switcher back.
+      let list = null
+      try {
+        list = await fetchSessions()
+      } catch (err) {
+        console.error('Failed to load chats:', err)
+      }
+      if (!alive) return
+      setSessions(list)
+
+      try {
+        if (list === null) {
+          const all = await fetchAllMessages()
+          if (alive) setMessages(all)
+          return
+        }
+        const latest = list[0]
+        if (!latest) return
+        setSessionId(latest.id)
+        setSessionTitle(latest.title || 'Untitled chat')
+        const rows = await fetchMessages(latest.id)
+        if (alive) setMessages(rows)
+      } catch (err) {
+        console.error('Failed to load messages:', err)
+      }
+    })()
+    return () => {
+      alive = false
+    }
   }, [])
 
   useEffect(() => {
@@ -54,12 +121,109 @@ function TripApp({ sender }) {
     }
   }, [])
 
-  async function loadMessages() {
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .order('created_at', { ascending: true })
-    if (data) setMessages(data)
+  const loadSessions = useCallback(async () => {
+    try {
+      setSessions(await fetchSessions())
+    } catch (err) {
+      console.error('Failed to load chats:', err)
+    }
+  }, [])
+
+  /**
+   * Re-read the session list and the open thread. This is what makes the other
+   * person's messages appear: before it, loadMessages ran once on mount and
+   * never again, so you needed a full page reload to see them.
+   */
+  const refreshChat = useCallback(async () => {
+    // A turn in flight owns `messages` until it finishes — its reply isn't
+    // saved yet, so refetching here would drop it out from under itself.
+    if (loadingRef.current) return
+    try {
+      const list = await fetchSessions()
+      setSessions(list)
+      if (list === null) {
+        setMessages(await fetchAllMessages())
+      } else if (sessionIdRef.current) {
+        setMessages(await fetchMessages(sessionIdRef.current))
+      }
+    } catch (err) {
+      // Same reasoning as refreshTable in use-trip-data.js: a failed background
+      // refresh shouldn't put an error over content that's working.
+      console.error('Chat refresh failed:', err)
+    }
+  }, [])
+
+  // Mirrors the onWake handler in use-trip-data.js, which covers the six trip
+  // tables but not messages — you put the phone down, Ori replies, you pick it
+  // up again.
+  useEffect(() => {
+    const onWake = () => {
+      if (document.visibilityState === 'visible') refreshChat()
+    }
+    document.addEventListener('visibilitychange', onWake)
+    window.addEventListener('focus', onWake)
+    return () => {
+      document.removeEventListener('visibilitychange', onWake)
+      window.removeEventListener('focus', onWake)
+    }
+  }, [refreshChat])
+
+  function refreshEverything() {
+    trip.refreshAll()
+    refreshChat()
+  }
+
+  function openSessions() {
+    setShowSessions(true)
+    // Cheap, and it keeps the counts and the ordering honest without a timer.
+    loadSessions()
+  }
+
+  async function selectSession(id) {
+    setShowSessions(false)
+    if (id === sessionId) return
+    const chosen = (sessions ?? []).find(s => s.id === id)
+    setSessionId(id)
+    sessionIdRef.current = id
+    setSessionTitle(chosen?.title || 'Untitled chat')
+    setMessages([])
+    setError('')
+    try {
+      setMessages(await fetchMessages(id))
+    } catch (err) {
+      setError(err.message || "Couldn't open that chat.")
+    }
+  }
+
+  /**
+   * Lazily: no row is written until the first message is sent, or an abandoned
+   * tap leaves an empty session in the list forever.
+   */
+  function startNewChat() {
+    setShowSessions(false)
+    setSessionId(null)
+    sessionIdRef.current = null
+    setSessionTitle('')
+    setMessages([])
+    setError('')
+  }
+
+  /**
+   * Names a thread from its first exchange. Runs after the reply is already on
+   * screen and never throws: the 40-character fallback written at creation is
+   * a perfectly good title, and a name is not worth failing a turn over.
+   */
+  async function nameSession(id, firstUser, firstAssistant) {
+    const title = await generateTitle({ firstUser, firstAssistant })
+    if (!title) return
+    try {
+      await saveSessionTitle(id, title)
+    } catch (err) {
+      console.error("Couldn't save the chat's name:", err)
+      return
+    }
+    if (sessionIdRef.current === id) setSessionTitle(title)
+    setSessions(prev => (prev ? prev.map(s => (s.id === id ? { ...s, title } : s)) : prev))
   }
 
   async function sendMessage(e) {
@@ -67,7 +231,32 @@ function TripApp({ sender }) {
     if (!input.trim() || loading) return
 
     const text = input.trim()
-    const userMessage = { role: 'user', sender, content: text }
+
+    // Sessions are created here, on the first message, rather than on the New
+    // chat tap — see startNewChat.
+    let activeId = sessionId
+    const isFirstExchange = messagesRef.current.length === 0
+    if (sessions !== null && !activeId) {
+      try {
+        const session = await createSession({ title: fallbackTitle(text), startedBy: sender })
+        activeId = session.id
+        setSessionId(session.id)
+        sessionIdRef.current = session.id
+        setSessionTitle(session.title)
+      } catch (err) {
+        setError(err.message || "Couldn't start a new chat. Try again.")
+        return
+      }
+    }
+
+    // session_id is omitted entirely in legacy mode: the column doesn't exist
+    // until migration 004 runs.
+    const userMessage = {
+      role: 'user',
+      sender,
+      content: text,
+      ...(activeId ? { session_id: activeId } : {}),
+    }
 
     const { data: savedMsg, error: saveError } = await supabase
       .from('messages')
@@ -80,8 +269,12 @@ function TripApp({ sender }) {
       return
     }
 
-    const updatedMessages = [...messages, savedMsg]
-    setMessages(updatedMessages)
+    // Built from the ref, not the `messages` closure: a focus refetch may have
+    // landed since this render, and the old code sent the API a history that
+    // was missing whatever arrived in between.
+    const updatedMessages = [...messagesRef.current, savedMsg]
+    setMessages(prev => [...prev, savedMsg])
+    if (activeId) touchSession(activeId)
     setInput('')
     setError('')
     setLoading(true)
@@ -169,13 +362,28 @@ function TripApp({ sender }) {
       // array for debugging and future replay.
       const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
-        .insert({ role: 'assistant', sender: 'Agent', content: reply, content_json: finalBlocks })
+        .insert({
+          role: 'assistant',
+          sender: 'Agent',
+          content: reply,
+          content_json: finalBlocks,
+          ...(activeId ? { session_id: activeId } : {}),
+        })
         .select()
         .single()
 
       if (assistantError || !savedAssistant) throw new Error("Couldn't save the reply.")
 
-      setMessages(prev => [...prev, savedAssistant])
+      // Only if you're still looking at the thread it belongs to — the session
+      // list is reachable mid-turn, and the reply is saved against activeId
+      // either way.
+      if (sessionIdRef.current === activeId) setMessages(prev => [...prev, savedAssistant])
+
+      if (activeId) {
+        touchSession(activeId)
+        // Deliberately not awaited: the reply is already on screen.
+        if (isFirstExchange) nameSession(activeId, text, reply)
+      }
 
       // The agent may have just written a recommendation, journal draft, or
       // packing item.
@@ -232,7 +440,7 @@ function TripApp({ sender }) {
               <button
                 type="button"
                 className="refresh"
-                onClick={() => trip.refreshAll()}
+                onClick={refreshEverything}
                 disabled={trip.refreshing}
               >
                 {trip.refreshing ? '…' : 'Refresh'}
@@ -245,23 +453,46 @@ function TripApp({ sender }) {
               </button>
             </div>
           </div>
-          <span className="subtitle">{subtitle}</span>
+          {/* On Chat the subtitle is the session switcher, per session2-spec.md:
+              sessions organise the Chat tab rather than earning a fifth tab. It
+              stays the trip countdown in legacy mode, where there's nothing to
+              switch between. */}
+          {tab === 'chat' && sessions !== null ? (
+            <button
+              type="button"
+              className="subtitle session-switch"
+              onClick={() => (showSessions ? setShowSessions(false) : openSessions())}
+            >
+              <span>{sessionTitle || 'New chat'}</span>
+              <span className="pack-caret">{showSessions ? '▲' : '▼'}</span>
+            </button>
+          ) : (
+            <span className="subtitle">{subtitle}</span>
+          )}
         </div>
         <TabBar value={tab} onChange={setTab} />
       </header>
 
       {!online && <div className="banner">Offline — changes will fail until you reconnect.</div>}
 
-      {tab === 'chat' && (
-        <Chat
-          messages={messages}
-          input={input}
-          onInputChange={setInput}
-          loading={loading}
-          error={error}
-          onSubmit={sendMessage}
-        />
-      )}
+      {tab === 'chat' &&
+        (showSessions ? (
+          <SessionList
+            sessions={sessions ?? []}
+            currentSessionId={sessionId}
+            onSelect={selectSession}
+            onNew={startNewChat}
+          />
+        ) : (
+          <Chat
+            messages={messages}
+            input={input}
+            onInputChange={setInput}
+            loading={loading}
+            error={error}
+            onSubmit={sendMessage}
+          />
+        ))}
 
       {tab === 'agenda' && (
         <Agenda

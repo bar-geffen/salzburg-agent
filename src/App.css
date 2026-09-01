@@ -441,6 +441,39 @@
   color: var(--muted);
 }
 
+/* ── Chat sessions ───────────────────────────────────────────────────────── */
+
+/* The Chat tab's subtitle, doubling as the session switcher. It carries the
+ * .subtitle class too, so the type is unchanged; this only makes it a 44px tap
+ * target, which design-spec.md requires of anything tappable. That does grow the
+ * header on the Chat tab — the alternative was an 11px hit area. */
+.session-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  margin: 0 -4px;
+  background: transparent;
+  text-align: left;
+}
+
+/* The title, which is the only part that can be long enough to wrap. Selected
+ * rather than classed because it's the button's own first child, not a thing
+ * anywhere else in the app has. */
+.session-switch > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A card that is also its own tap target — the whole row, not a link inside it.
+ * Resets what <button> imposes; the card treatment is Saved's, unchanged. */
+.session-card {
+  width: 100%;
+  text-align: left;
+}
+
 /* ── Composer ────────────────────────────────────────────────────────────── */
 
 .composer {

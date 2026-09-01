@@ -93,6 +93,21 @@ export function formatCountdown(days) {
 }
 
 /**
+ * A full timestamp (timestamptz) -> 'today' | 'yesterday' | '3 days ago'.
+ *
+ * Deliberately not parseISODate on the first 10 characters, the way whole-date
+ * columns are handled: that's the UTC date, which is the wrong day either side
+ * of midnight at +03:00. A timestamp carries its own offset, so Date parses it
+ * correctly and toISODate brings it back to the local calendar day.
+ */
+export function relativeDay(timestamp) {
+  if (!timestamp) return ''
+  const at = new Date(timestamp)
+  if (Number.isNaN(at.getTime())) return ''
+  return formatCountdown(daysBetween(todayISO(), toISODate(at)))
+}
+
+/**
  * activities.time is untyped text — the tool asks for HH:MM but the model may
  * write '9am' or a range. Pass through anything already well-formed, otherwise
  * render what's there rather than mangling it.
