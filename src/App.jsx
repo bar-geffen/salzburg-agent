@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { displayNameFor, signInWithGoogle, signOut, useSession } from './lib/auth'
 import { buildSystemPrompt } from './lib/build-system-prompt'
 import { TOOLS, executeTool } from './lib/tools'
 import { useTripData } from './lib/use-trip-data'
@@ -22,12 +23,14 @@ const REQUEST_TIMEOUT_MS = 60_000
 
 const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved', packing: 'Packing' }
 
-function App() {
+// The app proper. Mounted only for an allowlisted session, which is what keeps
+// useTripData and loadMessages from firing for a signed-out visitor and coming
+// back with empty arrays that look like "no trip yet".
+function TripApp({ sender }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [sender, setSender] = useState(() => localStorage.getItem('sender') || '')
   const [tab, setTab] = useState('chat')
   const [online, setOnline] = useState(() => navigator.onLine)
 
@@ -57,11 +60,6 @@ function App() {
       .select('*')
       .order('created_at', { ascending: true })
     if (data) setMessages(data)
-  }
-
-  function chooseSender(name) {
-    setSender(name)
-    localStorage.setItem('sender', name)
   }
 
   async function sendMessage(e) {
@@ -199,20 +197,12 @@ function App() {
     }
   }
 
-  if (!sender) {
-    return (
-      <div className="gate">
-        <h1 className="gate-title">Salzburg 2026</h1>
-        <p className="gate-sub">Who's chatting?</p>
-        <div className="gate-buttons">
-          {['Bar', 'Ori'].map(name => (
-            <button key={name} type="button" onClick={() => chooseSender(name)}>
-              {name}
-            </button>
-          ))}
-        </div>
-      </div>
-    )
+  async function handleSignOut() {
+    try {
+      await signOut()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const pendingCount = trip.recommendations.filter(r => r.status === 'pending').length
@@ -232,19 +222,30 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="app-title">
-          <div className="app-title-text">
+        <div className="app-titlebar">
+          {/* Title and actions share a row; the subtitle gets the full width
+              below them. Two actions plus the longest subtitle ("STARTS TUE 15
+              SEPT · IN 2 WEEKS") don't fit on one line at 375px. */}
+          <div className="app-title-row">
             <span className="title">{TITLES[tab]}</span>
-            <span className="subtitle">{subtitle}</span>
+            <div className="header-actions">
+              <button
+                type="button"
+                className="refresh"
+                onClick={() => trip.refreshAll()}
+                disabled={trip.refreshing}
+              >
+                {trip.refreshing ? '…' : 'Refresh'}
+              </button>
+              {/* Rare, but it has to exist: a wrong-account sign-in is otherwise
+                  unrecoverable on a phone. Muted rather than accent — the design
+                  allows one accent action per screen and Refresh has it. */}
+              <button type="button" className="signout" onClick={handleSignOut}>
+                Sign out
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            className="refresh"
-            onClick={() => trip.refreshAll()}
-            disabled={trip.refreshing}
-          >
-            {trip.refreshing ? '…' : 'Refresh'}
-          </button>
+          <span className="subtitle">{subtitle}</span>
         </div>
         <TabBar value={tab} onChange={setTab} />
       </header>
@@ -254,8 +255,6 @@ function App() {
       {tab === 'chat' && (
         <Chat
           messages={messages}
-          sender={sender}
-          onSenderChange={chooseSender}
           input={input}
           onInputChange={setInput}
           loading={loading}
@@ -303,6 +302,93 @@ function App() {
           onRemove={trip.removePacking}
         />
       )}
+    </div>
+  )
+}
+
+// Three states, per session2-spec.md. The middle one is the whole point: a
+// Google account that isn't on the allowlist authenticates *successfully* —
+// Supabase creates the user and the JWT is valid — and then reads nothing from
+// every table. Branching only on "session or no session" would show that person,
+// or either of us on the wrong Google account, a fully-loaded app with an empty
+// trip and no explanation.
+function App() {
+  const { session, loading } = useSession()
+
+  // getSession() reads persisted storage asynchronously; without this the
+  // sign-in screen flashes at someone who is already signed in.
+  if (loading) return <Splash />
+  if (!session) return <SignIn />
+
+  const sender = displayNameFor(session)
+  if (!sender) return <NotOnThisTrip email={session.user.email} />
+
+  return <TripApp sender={sender} />
+}
+
+function Splash() {
+  return (
+    <div className="gate">
+      <h1 className="gate-title">Salzburg 2026</h1>
+    </div>
+  )
+}
+
+function SignIn() {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function start() {
+    setBusy(true)
+    setError('')
+    try {
+      // On success the browser navigates to Google and never comes back here.
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="gate">
+      <h1 className="gate-title">Salzburg 2026</h1>
+      <p className="gate-sub">Sign in to open the trip.</p>
+      <div className="gate-buttons">
+        <button type="button" onClick={start} disabled={busy}>
+          {busy ? 'Opening Google…' : 'Continue with Google'}
+        </button>
+      </div>
+      {error && <p className="gate-error">{error}</p>}
+    </div>
+  )
+}
+
+function NotOnThisTrip({ email }) {
+  const [error, setError] = useState('')
+
+  async function leave() {
+    setError('')
+    try {
+      await signOut()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  return (
+    <div className="gate">
+      <h1 className="gate-title">Not on this trip</h1>
+      <p className="gate-sub">
+        Signed in as <span className="gate-email">{email}</span>, who isn't on this trip. Sign out
+        and try another account.
+      </p>
+      <div className="gate-buttons">
+        <button type="button" onClick={leave}>
+          Sign out
+        </button>
+      </div>
+      {error && <p className="gate-error">{error}</p>}
     </div>
   )
 }

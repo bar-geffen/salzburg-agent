@@ -56,6 +56,13 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   loads once and refetches on focus. Tabs are presentational; chat state and the
   tool loop stay in `App.jsx`, so switching tabs mid-turn can't unmount an
   in-flight request.
+- `src/lib/auth.js` is the only module that knows about `supabase.auth`:
+  `signInWithGoogle`, `signOut`, a `useSession()` hook over `onAuthStateChange`, and
+  `displayNameFor(session)`. `App.jsx` branches on it into three states — signed
+  out, signed in but not allowlisted, signed in and allowed — and only the third
+  mounts `TripApp`, so a signed-out visitor never fires a table read that would come
+  back empty and look like "no trip yet". `sender` is derived from the session;
+  `messages.sender` stays a display name (`Bar` / `Ori`).
 - `src/lib/dates.js` — all date formatting. Two rules it exists to enforce: parse
   `YYYY-MM-DD` at *local* midnight (`new Date('2026-09-15')` is UTC and renders as
   the 14th behind UTC), and format with an explicit `en-GB` locale, never the
@@ -80,6 +87,13 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   presentation scaffolding from the design tool — do not port them into the app.
 - **Trip data** lives in Supabase and is mutable by both users. Only the traveller
   profile is a file.
+- **The allowlist exists twice, deliberately.** `public.is_trip_member()`
+  (`supabase-migration-003.sql`, mirrored in `supabase-schema.sql`) is the
+  enforcement; `TRIP_MEMBERS` in `src/lib/auth.js` is how the UI knows to show "not
+  on this trip" instead of an empty app, and it also holds the display names, which
+  the database has no reason to know. This is the one sanctioned copy — edit both
+  together. Changing only the client shows someone the app and then fails every
+  query; changing only the SQL locks them out with no explanation.
 
 ## Things that are not automated
 
@@ -88,10 +102,12 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   deltas for a database that already ran an earlier version. If you change the
   schema, update `supabase-schema.sql` *and* add a numbered migration *and* say so
   in your summary, because someone has to paste it in.
-- **RLS is enabled with a fully permissive policy** (`using (true)`). That's the
-  same practical exposure as no RLS — the anon key ships in the client bundle — but
-  the switch is in place, so tightening access means editing the policy, not the
-  app. A PIN gate is still open; see `session1-gaps.md`.
+- **RLS is the access gate, and it is the only one.** All nine tables carry one
+  policy that calls `public.is_trip_member()`, which checks the email claim in the
+  Supabase Auth JWT against two addresses. The anon key still ships in the client
+  bundle and is now worth nothing on its own — an unauthenticated request reads zero
+  rows from every table. The app's sign-in screen is convenience; this is
+  enforcement. Changing who has access is a SQL edit, not a deploy.
 - **Status columns gate what the agent sees.** `recommendations.status` and
   `journal.status` exist because the design requires review before anything counts
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
