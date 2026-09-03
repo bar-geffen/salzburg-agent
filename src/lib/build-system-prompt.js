@@ -1,4 +1,5 @@
 import { TRAVELER_PROFILE } from '../data/traveler-profile'
+import { REGION_GUIDE } from '../data/region-guide'
 import { supabase } from './supabase'
 import { todayISO } from './dates'
 import { PACKING_CATEGORIES, PACKING_STRATEGY } from './packing'
@@ -59,6 +60,10 @@ export async function buildSystemPrompt() {
     '',
     `## Traveler Profile`,
     TRAVELER_PROFILE,
+    '',
+    `## Region Guide (standing research for the region, not the trip record)`,
+    REGION_GUIDE,
+    `Nothing in the guide is booked or agreed — the sections below are what's actually decided. The places in it are also in Saved Recommendations; the guide is the reasoning behind them. Where the guide and the traveller profile disagree, the profile wins.`,
     '',
     `## Flights`,
     flights?.length
