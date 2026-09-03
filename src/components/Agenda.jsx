@@ -39,7 +39,18 @@ export default function Agenda({
 
   // Before the trip everything is "planned"; during it, only what's still ahead.
   const futureDays = phase === 'before' ? days : phase === 'during' ? upcoming : past
-  const stay = accommodation?.[0]
+  // accommodation is ordered by check_in, and this trip has three legs. Before
+  // departure every booked leg matters — showing only [0] would make legs 2 and
+  // 3 look like they never saved, which is exactly the confusion save_accommodation
+  // exists to end. Once you're travelling, the only useful answer is tonight's bed.
+  const stays =
+    phase === 'before'
+      ? (accommodation ?? [])
+      : [
+          accommodation?.find(a => a.check_in <= today && today < a.check_out) ??
+            accommodation?.find(a => a.check_in > today) ??
+            accommodation?.[accommodation.length - 1],
+        ].filter(Boolean)
   const entry = journal?.find(j => j.status === 'draft') ?? journal?.[0]
 
   if (error) {
@@ -88,9 +99,9 @@ export default function Agenda({
         )}
       </Section>
 
-      <Section label="Stay">
-        {stay ? (
-          <StayCard stay={stay} phase={phase} />
+      <Section label={stays.length > 1 ? 'Stays' : 'Stay'}>
+        {stays.length > 0 ? (
+          stays.map(stay => <StayCard key={stay.id} stay={stay} phase={phase} />)
         ) : (
           <span className="empty">
             No accommodation yet. Tell the agent where you're staying once it's booked.

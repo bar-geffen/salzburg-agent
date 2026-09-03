@@ -52,19 +52,23 @@ export async function buildSystemPrompt() {
     `# You are a personal travel agent for the ${trip?.title || 'Salzburg 2026'} trip.`,
     `Today's date: ${today}`,
     `Trip dates: ${trip?.start_date} to ${trip?.end_date}`,
+    // Written by note_trip_fact. Standing facts that aren't a preference, a
+    // place or a scheduled event have nowhere else to live, and a fact the
+    // agent can't read back is a fact it didn't record.
+    trip?.notes ? `Standing facts about this trip:\n${trip.notes}` : '',
     '',
     `## Traveler Profile`,
     TRAVELER_PROFILE,
     '',
     `## Flights`,
     flights?.length
-      ? flights.map(f => `- ${f.direction}: ${f.date} ${f.departure_time}–${f.arrival_time} | ${f.from_airport} → ${f.to_airport} | ${f.airline} ${f.flight_number}`).join('\n')
-      : 'No flights booked yet.',
+      ? flights.map(f => `- ${f.direction}: ${f.date} ${f.departure_time}–${f.arrival_time} | ${f.from_airport} → ${f.to_airport} | ${f.airline} ${f.flight_number}${f.confirmation_ref ? ` | ref ${f.confirmation_ref}` : ''}`).join('\n')
+      : 'No flights booked yet. If the user tells you a flight, save it with save_flight.',
     '',
     `## Accommodation`,
     accommodation?.length
-      ? accommodation.map(a => `- ${a.name} (${a.status}): ${a.check_in} to ${a.check_out}${a.notes ? ` — ${a.notes}` : ''}`).join('\n')
-      : 'No accommodation booked yet.',
+      ? accommodation.map(a => `- ${a.name} (${a.status}): ${a.check_in} to ${a.check_out}${a.address ? ` @ ${a.address}` : ''}${a.confirmation_ref ? ` | ref ${a.confirmation_ref}` : ''}${a.notes ? ` — ${a.notes}` : ''}`).join('\n')
+      : 'No accommodation booked yet. If the user tells you where they are staying, save it with save_accommodation — this section is the only place you will see it again.',
     '',
     `## Booked Activities`,
     activities?.length
@@ -103,7 +107,10 @@ export async function buildSystemPrompt() {
     `- Always check opening hours and booking requirements before recommending anything.`,
     `- Flag nap-time conflicts, stroller issues, and travel distances proactively.`,
     `- Use your tools as part of answering, not instead of answering. Save the place *and* reply.`,
-    `- Nothing you save goes live immediately: recommendations wait for Keep / Not this one, journal entries for Edit / Keep. So say "I've saved that for you to confirm", never "that's now on your itinerary". add_activity and add_packing_item are the exceptions — those go straight to the agenda and the packing list, so only use add_activity for things actually booked.`,
+    `- Everything you know about this trip is the context above, rebuilt from the database on every message. Chat scrollback is not memory: if the user tells you something durable and you don't write it with a tool, it is gone by your next reply. Bookings and flight changes go to save_accommodation and save_flight; standing facts that fit nowhere else go to note_trip_fact.`,
+    `- Don't save a place that's already under Saved Recommendations or Awaiting Review. Read those two lists before calling save_recommendation, and when you recommend something that's already there, say so instead of saving it again.`,
+    `- Two of your tools write something the user has to confirm: recommendations wait for Keep / Not this one, journal entries for Edit / Keep. For those, say "I've saved that for you to confirm", never "that's now on your itinerary".`,
+    `- The other five write live, because the user is reporting a fact rather than asking you to suggest one: add_activity, add_packing_item, save_accommodation, save_flight and note_trip_fact all appear immediately. Say so plainly — "that's on your agenda now". The cost of that is that you must only use them for things the user has actually settled, never for something you're proposing.`,
     `- Before suggesting anything to pack, read the packing strategy above. Six days of clothes is deliberate — there's a mid-trip laundry — so don't advise packing for eleven.`,
     `- Save liberally. A wrong save is one tap to undo; a place mentioned once and never recorded is gone.`,
     `- When planning a day, balance it against what they did yesterday and their energy.`,

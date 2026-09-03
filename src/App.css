@@ -336,6 +336,25 @@
   font-style: italic;
 }
 
+/* A receipt for what the agent wrote to the trip while it was answering — not
+ * content, so it takes the same quiet mono label the Saved cards use for
+ * provenance rather than any weight of its own. The rule ties it to the reply
+ * above it; without one it reads as a fourth paragraph. */
+.msg-saves {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+
+/* .meta sets no line-height because it's a single line everywhere else. A stay
+ * with dates wraps at 375px, and without this the two halves touch. */
+.msg-saves .meta {
+  line-height: 1.45;
+}
+
 /* Markdown, as rendered by ReactMarkdown. index.css used to style these
  * elements globally; deleting that would silently flatten every agent reply. */
 .msg-body > * + * {

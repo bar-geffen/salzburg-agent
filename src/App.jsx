@@ -282,18 +282,25 @@ function TripApp({ sender }) {
     try {
       const systemPrompt = await buildSystemPrompt()
 
-      // The tool loop runs in memory. Only the user's message and the agent's
-      // final reply are persisted — the intermediate tool_use / tool_result
-      // turns are not, deliberately:
+      // The tool loop runs in memory. What gets replayed to the API on the next
+      // message is only the text — apiMessages is built from m.content, never
+      // from content_json — deliberately:
       //
       //   - What the tools wrote is already in Supabase, and buildSystemPrompt()
       //     re-reads every table on the next message, so nothing is forgotten.
-      //   - Persisting tool_use blocks without their results would produce a
+      //   - Replaying tool_use blocks without their results would produce a
       //     history the API rejects if the page reloads mid-loop.
-      //   - The messages table stays free of plumbing the UI would have to hide.
+      //
+      // The blocks are still *stored*, in content_json, because that's what
+      // makes a save visible in the transcript instead of something the user
+      // has to go to another tab to discover.
       const apiMessages = updatedMessages.map(m => ({ role: m.role, content: m.content }))
 
       let finalBlocks = []
+      const allBlocks = []
+      // One line per tool call, written by the executor because only it knows
+      // whether the row was written, already there, or previously rejected.
+      const savedLines = []
       const spokenText = []
       let hitIterationCap = true
 
@@ -304,6 +311,7 @@ function TripApp({ sender }) {
         if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`)
 
         finalBlocks = data.content ?? []
+        allBlocks.push(...finalBlocks)
 
         // Text can arrive alongside tool calls, so collect it every pass rather
         // than only reading the last response.
@@ -328,13 +336,18 @@ function TripApp({ sender }) {
         const toolResults = await Promise.all(
           toolUses.map(async block => {
             try {
+              const { modelText, userLine } = await executeTool(block.name, block.input)
+              savedLines.push(userLine)
               return {
                 type: 'tool_result',
                 tool_use_id: block.id,
-                content: await executeTool(block.name, block.input),
+                content: modelText,
               }
             } catch (toolError) {
               console.error(`Tool ${block.name} failed:`, toolError)
+              // Surfaced to the user too. A save that silently failed is the
+              // exact thing this line exists to make impossible.
+              savedLines.push(`Couldn't save that — ${toolError.message}`)
               return {
                 type: 'tool_result',
                 tool_use_id: block.id,
@@ -345,6 +358,7 @@ function TripApp({ sender }) {
           }),
         )
 
+        allBlocks.push(...toolResults)
         apiMessages.push({ role: 'assistant', content: finalBlocks })
         apiMessages.push({ role: 'user', content: toolResults })
       }
@@ -358,15 +372,18 @@ function TripApp({ sender }) {
       const reply = spokenText.join('\n\n').trim()
       if (!reply) throw new Error('The agent returned an empty response.')
 
-      // content is the plain-text rendering; content_json keeps the final block
-      // array for debugging and future replay.
+      // content is the plain-text rendering. content_json keeps the whole turn:
+      // `blocks` is every block from every pass of the loop (text, tool_use,
+      // tool_result), and `saves` is the one-line-per-tool-call summary Chat
+      // renders. Rows written before this shipped hold a bare array, which
+      // Chat reads as "no saves to show".
       const { data: savedAssistant, error: assistantError } = await supabase
         .from('messages')
         .insert({
           role: 'assistant',
           sender: 'Agent',
           content: reply,
-          content_json: finalBlocks,
+          content_json: { blocks: allBlocks, saves: savedLines },
           ...(activeId ? { session_id: activeId } : {}),
         })
         .select()
@@ -385,12 +402,15 @@ function TripApp({ sender }) {
         if (isFirstExchange) nameSession(activeId, text, reply)
       }
 
-      // The agent may have just written a recommendation, journal draft, or
-      // packing item.
+      // The agent may have just written to any of these. Skipping one means the
+      // tab it feeds keeps showing yesterday's answer until the next focus.
       trip.refreshTable('recommendations')
       trip.refreshTable('journal')
       trip.refreshTable('activities')
       trip.refreshTable('packing')
+      trip.refreshTable('accommodation')
+      trip.refreshTable('flights')
+      trip.refreshTable('trip')
     } catch (err) {
       console.error('Failed to send message:', err)
       setError(
