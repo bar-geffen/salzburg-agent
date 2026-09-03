@@ -8,6 +8,26 @@
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 8192
 
+// What the app says when Claude refuses. A bare "Claude API error (401)" is
+// the failure that explains nothing — the same thing the blank-page work and
+// the flight-status spec exist to avoid — and 401 in particular is not a
+// network blip you retry, it's a key someone has to go and fix.
+//
+// Claude's own error bodies aren't for a phone screen, so they stay in the
+// server log (console.error below) and these go to the user. Anything not
+// listed falls back to the status code, which is honest about not knowing.
+const MESSAGES = {
+  400: 'Claude rejected the request. This is a bug, not something you did.',
+  401: "The server's Anthropic API key was rejected. Check ANTHROPIC_API_KEY: it has probably been rotated, or picked up a stray quote or newline when it was pasted.",
+  403: "The server's Anthropic API key isn't allowed to do that. Check ANTHROPIC_API_KEY.",
+  404: `The model ${MODEL} isn't available to this API key.`,
+  413: "That was too long for one request. Start a new chat and ask again.",
+  429: 'Too many requests to Claude just now. Wait a moment and try again.',
+  500: 'Claude had an internal error. Try again.',
+  503: 'Claude is unavailable right now. Try again in a moment.',
+  529: 'Claude is overloaded right now. Try again in a moment.',
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -42,9 +62,14 @@ export default async function handler(req, res) {
     })
 
     if (!response.ok) {
+      // The detail is the only place the real reason lives, so it goes to the
+      // log every time: `npm run dev`'s terminal locally, the function log on
+      // Vercel.
       const detail = await response.text()
       console.error(`Claude API error ${response.status}:`, detail)
-      return res.status(response.status).json({ error: `Claude API error (${response.status})` })
+      return res.status(response.status).json({
+        error: MESSAGES[response.status] ?? `Claude API error (${response.status})`,
+      })
     }
 
     const data = await response.json()
