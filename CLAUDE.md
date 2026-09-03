@@ -24,6 +24,7 @@ There is no test suite.
 | `session2-spec.md` | The next three PRs — auth, chat sessions, live flight status — in build order. Supersedes gap 8, and the realtime and day-plan items in `session1-gaps.md`. |
 | `design-spec.md` | Design tokens, screens, patterns. |
 | `src/data/traveler-profile.js` | Long-term traveller preferences, injected into every system prompt. |
+| `src/data/region-guide.js` | Standing research for the Salzburg region — what to do, what to skip, where every hike shortens. Also injected into every system prompt. |
 
 ## Architecture
 
@@ -114,8 +115,18 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
 - **Design** lives in Claude Design, transcribed into `design-spec.md`. Don't invent
   colours, spacing, or type. `design/ios-frame.jsx` and `design/support.js` are
   presentation scaffolding from the design tool — do not port them into the app.
-- **Trip data** lives in Supabase and is mutable by both users. Only the traveller
-  profile is a file.
+- **The region guide** lives in `src/data/region-guide.js` — the opinionated
+  research behind the shortlist: the three-leg trip shape, the accommodation hard
+  filter, a turn-back point for every hike, and the list of famous things that are
+  deliberately cut. Its *places* are also `recommendations` rows (seeded by
+  `supabase-migration-005.sql`), because the Saved tab is where the travellers
+  look. That is not drift: the rows are the shortlist, the file is the reasoning,
+  and a row's `notes` field can't hold a cut list or a style rule. If you add a
+  place to one, add it to the other. Where the guide and the traveller profile
+  disagree, **the profile wins** — it's the long-term record; the guide is one
+  trip's research under one set of assumptions.
+- **Trip data** lives in Supabase and is mutable by both users. The traveller
+  profile and the region guide are the only two files.
 - **The allowlist exists twice, deliberately.** `public.is_trip_member()`
   (`supabase-migration-003.sql`, mirrored in `supabase-schema.sql`) is the
   enforcement; `TRIP_MEMBERS` in `src/lib/auth.js` is how the UI knows to show "not
@@ -137,6 +148,12 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   bundle and is now worth nothing on its own — an unauthenticated request reads zero
   rows from every table. The app's sign-in screen is convenience; this is
   enforcement. Changing who has access is a SQL edit, not a deploy.
+- **`supabase-migration-005.sql` seeds its 27 places as `kept`, not `pending`.**
+  The review gate is for what the agent catches in chat; these rows are the
+  travellers' own research, pasted in by hand, and routing them through review
+  would mean 27 taps to confirm a list they wrote. The migration's six cut items
+  are seeded as `rejected` — the status that already means "never re-propose
+  this". Neither is a precedent for a *write path*; see the next rule.
 - **Status columns gate what the agent sees.** `recommendations.status` and
   `journal.status` exist because the design requires review before anything counts
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending

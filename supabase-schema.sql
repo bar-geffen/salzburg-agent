@@ -8,10 +8,12 @@
 --   002  the packing_items table and its 160 seed items
 --   003  Google auth: is_trip_member() and the nine policy swaps
 --   004  chat_sessions, messages.session_id, and the backfill of old messages
+--   005  the region guide's places, seeded as recommendations rows
 --
--- On a fresh database: run this file, then 002 for the packing seed. 004's
--- backfill is a migration-only concern: a fresh database has no messages to
--- orphan, and session_id is not null here from the start.
+-- On a fresh database: run this file, then 002 for the packing seed and 005 for
+-- the region guide's places. 004's backfill is a migration-only concern: a
+-- fresh database has no messages to orphan, and session_id is not null here
+-- from the start.
 
 -- Trip profile
 create table trip (
