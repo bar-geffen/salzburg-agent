@@ -47,10 +47,28 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   parallel. Adding a table means adding a section here too.
 - `src/lib/tools.js` holds the tool definitions *and* their executors. The tools
   write to Supabase, so they run client-side; `sendMessage` in `App.jsx` loops on
-  `stop_reason === 'tool_use'` until the agent stops calling them. The loop is
-  in-memory — only the user's message and the final reply are persisted. Don't use
+  `stop_reason === 'tool_use'` until the agent stops calling them. Don't use
   `strict: true` on a tool; structured outputs aren't supported on the model in
   `api/chat.js`.
+- **An executor returns `{ modelText, userLine }`, not a string.** `modelText` is
+  the `tool_result` the model reads; `userLine` is one short line the chat renders
+  under the reply. The executor writes both because only it knows what the write
+  actually did — "Saved Café Bazar for review" and "Café Bazar — already saved"
+  are different lines, and deriving one from the tool *input* would sometimes lie.
+  A save nobody can see is the same bug as a save that never happened.
+- **The tool loop is in-memory for replay, but persisted for display.**
+  `apiMessages` is built from `messages.content` only, so a page reload can never
+  replay a `tool_use` without its result. `messages.content_json` separately stores
+  `{ blocks, saves }` — every block from every pass, plus those `userLine`s. Rows
+  written before this shipped hold a bare array; `Chat.jsx` reads that as "no saves
+  to show" rather than breaking.
+- **`save_recommendation` refuses duplicates in the executor, not just the prompt.**
+  It matches on the name with accents and punctuation stripped, so "Cafe Bazar"
+  won't join "Café Bazar" on the list. It has to be enforced here: the agent
+  re-proposes its own standing suggestions on every day plan, and those places are
+  already rows. A rejected match is reported back and not re-added — but
+  note there is currently no way to *un*-reject a row from the UI, so a place
+  turned down once can only come back via SQL.
 - `src/lib/trip-data.js` owns every read of the trip tables **and** the seven
   user-initiated mutations. `src/lib/use-trip-data.js` wraps it in a hook that
   loads once and refetches on focus. Tabs are presentational; chat state and the
@@ -124,11 +142,31 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
   recommendations under a separate "Awaiting Review" heading). If you add a write
   path, respect this — don't insert straight to `kept`.
-- **`activities` and `packing_items` are the two exceptions**, and deliberately so:
-  neither has a `status`, because neither has a meaningful pending state (a booked
-  time is booked; an unticked checkbox is already its own review). `add_activity`
-  and `add_packing_item` write live rows. `packing_items.added_by` is what keeps
-  that honest — the UI marks agent-written items so nothing appears silently.
+- **Five tools write live, and deliberately so.** The review gate exists for
+  things the agent *proposes*; these five record something the traveller has
+  already settled, and making them tap Keep on their own booking is bureaucracy:
+  - `add_activity` and `add_packing_item` — `activities` and `packing_items` have
+    no `status` because neither has a meaningful pending state (a booked time is
+    booked; an unticked checkbox is already its own review).
+  - `save_accommodation`, `save_flight` and `note_trip_fact` — the `trip`,
+    `flights` and `accommodation` tables had **no write path at all** before these,
+    from the app or from a tool. The agent filed a booked apartment as an
+    `add_activity` called "Check in — Haus Bergblick" and then, on the next
+    message, told the travellers that leg was still unbooked, because
+    `buildSystemPrompt()` rebuilds from the tables and the tables never changed.
+    If you add a table the agent should know, it needs a section in
+    `build-system-prompt.js` **and** a tool, or the agent can't record what it's
+    told. `accommodation.status` (`booked` / `researching`) carries the only
+    hedge; a place they're merely considering is still a `save_recommendation`.
+
+  Each is visibly attributed — `packing_items.added_by` marks agent-written rows,
+  and every one of the five prints a `userLine` in the chat — so nothing the agent
+  writes appears silently.
+- **`save_accommodation` and `save_flight` replace rather than append.** One stay
+  per `check_in`, one flight per `direction`. That's what makes a changed booking
+  a change instead of a second bed on the same night, and it's why `save_flight`
+  is documented as taking every field even the unchanged ones: a row carrying the
+  new time and the old flight number is a wrong answer that looks right.
 - **The packing list's prose lives in `src/lib/packing.js`, its items in Supabase.**
   `PACKING_STRATEGY` and the category labels are read by both `Packing.jsx` and
   `build-system-prompt.js`; the 160 items are seeded once by

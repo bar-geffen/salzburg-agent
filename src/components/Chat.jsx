@@ -48,6 +48,7 @@ export default function Chat({
               <div className="msg-body">
                 <ReactMarkdown>{msg.content}</ReactMarkdown>
               </div>
+              {!isUser && <Saves lines={savesOf(msg)} />}
             </div>
           )
         })}
@@ -80,5 +81,32 @@ export default function Chat({
         </div>
       </form>
     </>
+  )
+}
+
+/**
+ * What the agent wrote to the trip while it was answering. Without this the
+ * only evidence a save happened is the agent claiming so in prose, which it
+ * often doesn't — it saves two places and then answers the question it was
+ * asked, and the user goes to the Saved tab expecting nothing.
+ *
+ * Rows written before content_json carried `saves` hold a bare block array;
+ * those show nothing rather than breaking.
+ */
+function savesOf(msg) {
+  const json = msg.content_json
+  return Array.isArray(json) ? [] : (json?.saves ?? [])
+}
+
+function Saves({ lines }) {
+  if (!lines.length) return null
+  return (
+    <div className="msg-saves">
+      {lines.map((line, i) => (
+        <span key={i} className="meta">
+          {line}
+        </span>
+      ))}
+    </div>
   )
 }
