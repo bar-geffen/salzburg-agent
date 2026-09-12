@@ -12,6 +12,13 @@ import Icon from './Icon'
 // traveller profile says these three actually ask for.
 const STARTERS = ['What should we do with a free morning?', 'Somewhere easy for lunch with Amir']
 
+// Enter sends on a real keyboard, Shift+Enter starts a new line. On a phone
+// it's the other way round: a touch keyboard has no Shift+Enter, so sending on
+// Enter would leave no way to type a bulleted list at all — the send button is
+// an inch away instead. Read per keystroke, not once: the same tab can move
+// between a phone and a desk without a reload.
+const sendsOnEnter = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
 export default function Chat({
   messages,
   input,
@@ -38,6 +45,31 @@ export default function Chat({
   useEffect(() => {
     if (focusSignal) inputRef.current?.focus()
   }, [focusSignal])
+
+  // Grow with the text up to the max-height in App.css, then scroll inside.
+  // Keyed on `input` so it also shrinks back on the reset to '' after a send.
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    // Clear first, so scrollHeight reports the text's height and not the last
+    // one we set. An empty field is left to the min-height in App.css — writing
+    // a measured height there pins whatever the stylesheet happened to be at
+    // the first paint.
+    el.style.height = ''
+    // +2 for the border: everything here is border-box, so scrollHeight covers
+    // the padding but not the 1px top and bottom, and the field would sit two
+    // pixels short of its own text and grow a scrollbar.
+    if (input) el.style.height = `${el.scrollHeight + 2}px`
+  }, [input])
+
+  function handleKeyDown(e) {
+    // isComposing: mid-IME Enter commits the candidate, it doesn't send.
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+    if (!sendsOnEnter()) return
+    // sendMessage calls preventDefault itself, so the newline is suppressed
+    // even when it bails on an empty input or a turn already in flight.
+    onSubmit(e)
+  }
 
   return (
     <>
@@ -91,11 +123,15 @@ export default function Chat({
           msg.sender still drives the bubble tint and the name tag above. */}
       <form className="composer" onSubmit={onSubmit}>
         <div className="composer-row">
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             value={input}
             onChange={e => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            // The phone keyboard's return key should say return, not Go: with
+            // no Shift to pair it with, it's the only way to start a new line.
+            enterKeyHint={sendsOnEnter() ? 'send' : 'enter'}
             placeholder="Ask your travel agent…"
           />
           <button
@@ -112,6 +148,14 @@ export default function Chat({
   )
 }
 
+// Markdown folds a lone newline into a space, so the two-line message someone
+// typed as two lines came back as one. Two trailing spaces is markdown's own
+// hard break. List items and headings already break on their own — this is for
+// the plain lines between them.
+function preserveLineBreaks(text) {
+  return text.replace(/([^\n])\n(?!\n)/g, '$1  \n')
+}
+
 function UserMessage({ msg }) {
   const ori = msg.sender === 'Ori'
   return (
@@ -121,7 +165,7 @@ function UserMessage({ msg }) {
         {msg.sender}
       </span>
       <div className="msg-body">
-        <ReactMarkdown>{msg.content}</ReactMarkdown>
+        <ReactMarkdown>{preserveLineBreaks(msg.content)}</ReactMarkdown>
       </div>
     </div>
   )

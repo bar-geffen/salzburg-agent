@@ -1001,20 +1001,37 @@
 .composer-row {
   display: flex;
   gap: 10px;
-  align-items: center;
+  /* Not centre: once the field is several lines tall the send button belongs on
+     the last line, beside the text you just typed. */
+  align-items: flex-end;
 }
 
-.composer input {
+/* A textarea, not an input, so a message can be a list. It keeps the pill shape
+   by growing its own height from JS (see Chat.jsx) rather than showing a
+   scrollbar at one line — max-height caps it at about five lines. */
+.composer textarea {
   flex: 1;
   min-height: 52px;
-  padding: 0 18px;
+  max-height: 140px;
+  padding: 13px 18px;
   border: 1px solid var(--field);
   border-radius: 26px;
   background: var(--card);
+  font-family: inherit;
   font-size: 17px;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
+  /* A scrollbar track cutting across a 26px pill reads as a rendering fault,
+     and iOS never draws one here anyway. The caret stays in view regardless. */
+  scrollbar-width: none;
 }
 
-.composer input:focus {
+.composer textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.composer textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1248,6 +1265,19 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* The traveller's own words, under the agent's paraphrase of them. Serif and
+   indented behind a rule so it reads as quoted rather than as more of the
+   agent's writing — the whole point of showing it is that you can tell the two
+   apart. Tokens only; nothing new was invented for this. */
+.learned-quote {
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
 }
 
 /* Remove, on a kept card. A word here competed with the place name beside it on
