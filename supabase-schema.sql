@@ -147,14 +147,26 @@ create table journal (
   updated_at timestamptz default now()
 );
 
--- Agent learnings (extracted from conversations)
+-- Agent learnings -- what it remembers about the travellers between sessions.
+--
+-- One row per tag, and the tag is the handle: save_learning replaces a row with
+-- the same tag rather than inserting beside it, so a preference restated later
+-- is a correction and not a second opinion. Enforced in the executor (tools.js),
+-- the way save_recommendation's duplicate check is -- there is no unique index,
+-- because the normalization that decides whether two tags are the same tag
+-- lives in JS.
+--
+-- updated_at is therefore when the *current* version was learned; created_at is
+-- when the first one was. The agent reads the former, and it is what makes
+-- "learned 2026-09-20" on a line mean anything.
 create table learnings (
   id uuid primary key default gen_random_uuid(),
   type text not null check (type in ('liked', 'disliked', 'requirement', 'constraint', 'preference')),
   tag text not null,
   note text not null,
-  source_message text, -- the user message that triggered this learning
-  created_at timestamptz default now()
+  source_message text, -- the user's own words, shown back to them in Saved
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- Chat sessions

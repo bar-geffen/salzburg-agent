@@ -3,7 +3,7 @@
 // planned activity, both flights, and a packing list with ticked and unticked
 // rows in more than one category.
 //
-// The seven mutations are no-ops. Keep / Not this one / the checkbox will all
+// The mutations are no-ops. Keep / Not this one / the checkbox will all
 // appear to do nothing — that's the harness, not the app.
 
 const rec = (id, name, category, status, notes) => ({
@@ -48,6 +48,35 @@ export function useTripData() {
       { id: 'f2', direction: 'return', date: '2026-09-26', from_airport: 'SZG', to_airport: 'TLV', flight_number: '6H 672', departure_time: '14:10', arrival_time: '19:05' },
     ],
     journal: [],
+    learnings: [
+      {
+        id: 'l1',
+        type: 'preference',
+        tag: 'city-green-space',
+        note: 'On city days they want easy central green space, not another indoor sight.',
+        source_message: 'I think Mirabell Gardens is a good idea on the Salzburg day',
+        created_at: '2026-09-10T09:12:00Z',
+        updated_at: '2026-09-10T09:12:00Z',
+      },
+      {
+        id: 'l2',
+        type: 'constraint',
+        tag: 'pacing',
+        note: 'One big outing before lunch, then nothing that needs a plan.',
+        source_message: 'we were wiped after two things before lunch',
+        created_at: '2026-09-08T18:40:00Z',
+        updated_at: '2026-09-08T18:40:00Z',
+      },
+      {
+        id: 'l3',
+        type: 'requirement',
+        tag: 'high-chair',
+        note: 'Check for a high chair before recommending anywhere to eat.',
+        source_message: null,
+        created_at: '2026-09-05T12:00:00Z',
+        updated_at: '2026-09-05T12:00:00Z',
+      },
+    ],
     recommendations: [
       rec('r1', 'Sacher terrace', 'food', 'pending', 'Ori asked about cake with a view.'),
       rec('r2', 'Haus der Natur', 'activity', 'pending', 'Toddler water room, level 2.'),
@@ -71,6 +100,7 @@ export function useTripData() {
     saveJournal() {},
     keepRec() {},
     rejectRec() {},
+    forgetLearned() {},
     setPacked() {},
     addPacking() {},
     removePacking() {},
