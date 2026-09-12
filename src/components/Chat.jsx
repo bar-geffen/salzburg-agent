@@ -19,6 +19,23 @@ const STARTERS = ['What should we do with a free morning?', 'Somewhere easy for 
 // between a phone and a desk without a reload.
 const sendsOnEnter = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
+// Pasting into the composer by long-pressing it is genuinely hard on a phone:
+// the field is a one-line pill right above the keyboard, the press lands on the
+// placeholder as often as on the text layer, and iOS answers with the caret
+// loupe instead of the Paste callout. So on a touch device the composer offers
+// the paste itself — see the button swap below.
+//
+// Same matcher as above, read the same way and for the same reason, but this one
+// is asking "is this a finger?", not "is there a Shift key?" — they happen to be
+// the same question today and won't stay that way.
+const isTouch = () => window.matchMedia('(hover: none)').matches
+
+// Undefined outside a secure context, so the button is absent over plain http —
+// which includes `npm run dev --host` opened from a phone on the LAN. On the
+// deployed https app it's there. Nothing breaks either way: without it the slot
+// holds the disabled Send button it has always held.
+const canReadClipboard = () => typeof navigator.clipboard?.readText === 'function'
+
 export default function Chat({
   messages,
   input,
@@ -61,6 +78,30 @@ export default function Chat({
     // pixels short of its own text and grow a scrollbar.
     if (input) el.style.height = `${el.scrollHeight + 2}px`
   }, [input])
+
+  // Only when the field is empty: there is nothing to lose to a full replace,
+  // and it's the state where the send button is dead anyway. With text in the
+  // field there is also something to long-press, which is what makes the native
+  // menu appear reliably.
+  const showPaste = !input && isTouch() && canReadClipboard()
+
+  async function handlePaste() {
+    let text = ''
+    try {
+      text = await navigator.clipboard.readText()
+    } catch {
+      // Safari confirms a clipboard read with its own Paste button and rejects
+      // if you don't tap it. Declining isn't an error to report back — fall
+      // through to focusing the field, which is what the tap asked for anyway.
+    }
+    if (text) onInputChange(text)
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    // Caret after the pasted text rather than wherever it was, and on the next
+    // frame because the value arrives with React's re-render, not with the tap.
+    requestAnimationFrame(() => el.setSelectionRange(el.value.length, el.value.length))
+  }
 
   function handleKeyDown(e) {
     // isComposing: mid-IME Enter commits the candidate, it doesn't send.
@@ -134,14 +175,23 @@ export default function Chat({
             enterKeyHint={sendsOnEnter() ? 'send' : 'enter'}
             placeholder="Ask your travel agent…"
           />
-          <button
-            type="submit"
-            className="send"
-            disabled={loading || !input.trim()}
-            aria-label="Send"
-          >
-            <Icon name="send" size={22} />
-          </button>
+          {/* One slot, two buttons. Swapping rather than adding keeps the row the
+              same width — a second circle would take 60px off a 375px field —
+              and puts paste under the thumb already resting on send. */}
+          {showPaste ? (
+            <button type="button" className="paste" onClick={handlePaste}>
+              Paste
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="send"
+              disabled={loading || !input.trim()}
+              aria-label="Send"
+            >
+              <Icon name="send" size={22} />
+            </button>
+          )}
         </div>
       </form>
     </>
