@@ -6,7 +6,9 @@
 // leak unreviewed journal text into the agent's context.
 //
 // The mutations here are the only writes that change existing rows. They are all
-// user-initiated: the agent's tools never write 'kept'.
+// user-initiated: the agent's tools never write 'kept'. rejectRecommendation is
+// the one with two callers — the buttons, and the agent's remove_recommendation,
+// which is the same decision reached by sentence instead of by tap.
 
 import { supabase } from './supabase'
 
@@ -179,9 +181,10 @@ export function keepRecommendation(id) {
 }
 
 /**
- * Backs both "Not this one" and "Remove". Not a delete: build-system-prompt.js
- * excludes rejected rows entirely, so rejecting means the agent will never
- * propose it again — which is what both verbs mean here. It's also recoverable.
+ * Backs "Not this one", "Remove", and the agent's remove_recommendation tool.
+ * Not a delete: build-system-prompt.js excludes rejected rows entirely, so
+ * rejecting means the agent will never propose it again — which is what all
+ * three mean here. It's also recoverable, though only in SQL.
  */
 export function rejectRecommendation(id) {
   return setStatus('recommendations', id, 'rejected', "Couldn't remove that")
