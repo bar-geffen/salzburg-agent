@@ -32,7 +32,20 @@
 
   /* Borders that aren't --line */
   --field: #e4dbcc; /* inputs, filter pills */
+  --field-strong: #d5c9b6; /* the switcher pill hovered, checkbox outline */
   --btn-line: #ded4c4; /* secondary buttons */
+
+  /* One step darker than the accent, for a pressed primary control. */
+  --accent-deep: #944626;
+  /* One step lighter than --card, for a hovered white control. */
+  --card-lift: #fffdfa;
+
+  /* Text tones the three-line scale doesn't cover */
+  --faint: #b6ab9a; /* carets and other furniture, never words */
+  --green-ink: #3d5a45; /* on --tint-ori, which --green isn't dark enough for */
+  --done-ink: #8c8377; /* a ticked packing item */
+  --dot: #c9bfb0; /* the typing indicator */
+  --placeholder: #a79c8e;
 
   /* Type. Literata for titles and journal prose, Source Sans 3 for anything
    * read fast, IBM Plex Mono for times, labels and flight numbers.
@@ -45,6 +58,8 @@
   --r-card: 18px;
   --r-pill: 999px;
   --r-sm: 12px;
+  --r-ctl: 14px; /* anything square you tap: a tab, an icon button, the switcher */
+  --r-box: 9px; /* the packing checkbox, and only that */
 
   /* Safe areas, with the design's iOS device-frame values as the floor. */
   --pad-top: max(60px, env(safe-area-inset-top));
@@ -90,7 +105,7 @@ button {
 }
 
 ::placeholder {
-  color: var(--label);
+  color: var(--placeholder);
 }
 
 /* The shell. Mobile-first — 600px is about as wide as the design reads well;

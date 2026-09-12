@@ -6,6 +6,7 @@
 // should give you the overview again, not wherever you happened to be scrolled.
 
 import { useState } from 'react'
+import Icon from './Icon'
 import Section from './Section'
 import { PACKING_CATEGORIES, PACKING_STRATEGY } from '../lib/packing'
 
@@ -50,6 +51,8 @@ export default function Packing({
     // Under "To pack", a finished category is noise — you're asking what's left.
     .filter(g => filter === 'all' || g.left > 0)
 
+  const done = packing.filter(p => p.packed).length
+
   return (
     <>
       <div className="filters">
@@ -67,6 +70,15 @@ export default function Packing({
 
       <div className="scroll" role="tabpanel">
         {loading && <span className="empty">Loading…</span>}
+
+        {/* The whole-list count. It used to be the header's subtitle; the header
+            now says where the trip is, and a total belongs with the thing it
+            totals anyway — the per-category counts are down the page. */}
+        {packing.length > 0 && (
+          <span className="section-label">
+            Packing · {done} of {packing.length} done
+          </span>
+        )}
 
         {!loading && packing.length === 0 && (
           <span className="empty">
@@ -165,12 +177,19 @@ function PackRow({ item, sender, onSetPacked, onRemove }) {
   return (
     <div className={`pack-row${item.packed ? ' pack-row--done' : ''}`}>
       <label className="pack-check">
+        {/* The input is invisible but present — it keeps the native keyboard
+            behaviour and the checkbox role; .pack-box next to it is what's drawn.
+            The tick is always rendered and only becomes visible when checked, so
+            the box can't change size as you tap it. */}
         <input
           type="checkbox"
           checked={item.packed}
           disabled={busy}
           onChange={e => run(() => onSetPacked(item.id, e.target.checked, sender))}
         />
+        <span className="pack-box" aria-hidden="true">
+          <Icon name="check" size={16} strokeWidth={2.2} />
+        </span>
         {/* dir="auto" so the Hebrew items read right-to-left without a wrapper */}
         <span className="pack-name" dir="auto">
           {item.name}

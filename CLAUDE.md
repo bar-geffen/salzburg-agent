@@ -86,6 +86,20 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   fall back to the first 40 characters of the opening message. `fetchSessions()`
   returns `null` — not `[]` — when the table is missing, and `App.jsx` reads that
   as "migration 004 hasn't been pasted yet" and shows one undivided thread.
+  It also returns each session's `message_count`, `starter` and `topic` (the icon
+  key, matched on the title) so the Chats list never has to load a thread to
+  draw a row — `fetchSessionStats()` selects three narrow columns for every
+  message and tallies them here, deliberately **not** `content`.
+- **The Chat tab has two surfaces and one `view` state.** `'chat'` is the thread,
+  `'chats'` is the list, both under the same header and tab bar — no modal, no
+  route. Every tab change resets it to `'chat'`, so a tab tap always lands on the
+  thread. The header's switcher pill prints `Chat N of M` against the order
+  `fetchSessions()` returned, which is the order `SessionList` renders; if you
+  re-sort in one place, the label in the other starts lying.
+- **Refresh and Sign out live at the foot of the Chats list**, not in the header.
+  The design gave the Chat header's first row entirely to the switcher and the
+  `+`, and two mono-caps buttons don't fit beside them at 375px. Legacy mode is
+  the exception — it has no Chats list, so they get their own header row there.
 - `src/lib/auth.js` is the only module that knows about `supabase.auth`:
   `signInWithGoogle`, `signOut`, a `useSession()` hook over `onAuthStateChange`, and
   `displayNameFor(session)`. `App.jsx` branches on it into three states — signed
@@ -243,7 +257,10 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
 ## Conventions
 
 - React 19 + Vite, plain JS with JSX. No TypeScript, no CSS framework, no router,
-  no state library, no icon library — the design has no icons.
+  no state library, no icon library — `src/components/Icon.jsx` is the whole icon
+  set, twenty inline SVGs transcribed from the design. Add one only by
+  transcribing it too; a path drawn to a different grid reads as a different
+  family, and nothing outside that file should contain an `<svg>`.
 - No semicolons, single quotes, 2-space indent. Match the surrounding file.
 - Model ID lives in one place: `MODEL` at the top of `api/chat.js`.
 - **Design tokens are CSS variables in `src/index.css`; component styles are in
