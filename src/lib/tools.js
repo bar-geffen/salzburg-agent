@@ -69,16 +69,23 @@ One exception to saving liberally: read "Saved Recommendations" and "Awaiting Re
 
   {
     name: 'save_learning',
-    description: `Record something durable about how this family travels, so future suggestions account for it.
+    description: `Record something durable about how this family travels, so every future suggestion accounts for it. This is your only memory of what they've told you — the chat above you is not.
 
-Call this when the user reveals a preference, constraint, or reaction that should still matter next week — not for one-off facts about a single day.
+Call this whenever either of them says something that reveals what they want, not only when they're giving you feedback. Most of it arrives in passing, inside a question or an opinion about a plan, and that's the kind you'll otherwise lose.
+
+A reason is a preference. "I think Mirabell Gardens is a good idea for that day" is two separate things: a plan, which goes to add_activity, and a standing signal about what they reach for on a city day, which goes here. Record both. The plan expires when the day does; the signal is what makes your next suggestion better.
 
 Examples:
 - "Amir loved the splash pad" → type "liked", tag "water-play"
 - "That restaurant had no high chair, annoying" → type "requirement", tag "high-chair"
 - "We were exhausted after two activities before lunch" → type "constraint", tag "pacing"
+- "I think Mirabell Gardens is a good idea on the Salzburg day" → type "preference", tag "city-green-space", note that on city days they want easy central green space over another indoor sight
+- "let's not do another church" → type "disliked", tag "churches"
+- "we'd rather pay than queue" → type "preference", tag "queues"
 
-Save the general lesson, not the specific incident: "verify high chairs before recommending restaurants" is useful later, "Bärenwirt had no high chair" is not. If a learning contradicts one you already have, save the new one — the newer signal wins.`,
+Save the general lesson, not the specific incident: "verify high chairs before recommending restaurants" is useful later, "Bärenwirt had no high chair" is not.
+
+One learning per tag. Saving a tag you've used before REPLACES what was there, so this is also how you correct or sharpen a learning — if they contradict something you recorded, save the new version under the same tag and the old one goes. Read "What You've Learned" in your context first and reuse its tags rather than inventing a near-duplicate: "naps" and "nap-timing" are one fact stored twice, and two half-facts are worse than one.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -87,11 +94,35 @@ Save the general lesson, not the specific incident: "verify high chairs before r
           enum: ['liked', 'disliked', 'requirement', 'constraint', 'preference'],
           description: 'requirement = must always be checked; constraint = a hard limit on planning',
         },
-        tag: { type: 'string', description: 'Short kebab-case topic, e.g. "high-chair", "pacing", "water-play"' },
+        tag: {
+          type: 'string',
+          description:
+            'Short kebab-case topic, e.g. "high-chair", "pacing", "water-play". This is the handle: reuse an existing tag to replace that learning, pick a new one to add a learning.',
+        },
         note: { type: 'string', description: 'The lesson, phrased so it is actionable next time' },
-        source_message: { type: 'string', description: 'The user message that prompted this' },
+        source_message: {
+          type: 'string',
+          description:
+            'What they actually said, quoted. It is shown back to them so they can tell a real preference from something you over-read, and it is the wording you will see again next time.',
+        },
       },
-      required: ['type', 'tag', 'note'],
+      required: ['type', 'tag', 'note', 'source_message'],
+    },
+  },
+
+  {
+    name: 'forget_learning',
+    description: `Drop something you had recorded about how the family travels, because it was wrong.
+
+The counterpart to save_learning, and the reason your memory doesn't fill with things you over-read once. Only for a misreading — "we didn't mean that at all". If they've simply changed their mind, or the picture has sharpened, save_learning under the same tag instead: that replaces the old version and keeps the newer signal.
+
+Address it by tag, exactly as it appears under "What You've Learned".`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        tag: { type: 'string', description: 'The tag of the learning to drop, as it appears in your context' },
+      },
+      required: ['tag'],
     },
   },
 
@@ -426,6 +457,49 @@ const touch = () => ({ updated_at: new Date().toISOString() })
 // a few dozen rows, and short enough that the model copies it without slipping.
 const shortId = id => id.slice(0, 6)
 
+// A learning's tag is its handle, the way a short id is an activity's. Tags are
+// normalized on the way in so the model can't split one fact across two rows by
+// writing "High Chair" this week and "high-chair" next — matching on the raw
+// string would make the replace-by-tag rule silently not fire.
+const normalizeTag = tag =>
+  String(tag ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+async function findLearning(tag) {
+  const needle = normalizeTag(tag)
+  if (!needle) return null
+  const { data, error } = await supabase.from('learnings').select('*')
+  if (error) throw new Error(`Could not read what you've learned: ${error.message}`)
+  // Newest first, so a duplicate left by a half-failed write resolves to the
+  // most recent one and the next save collapses it.
+  return (
+    (data ?? [])
+      .filter(l => normalizeTag(l.tag) === needle)
+      .sort((a, b) => (b.updated_at ?? b.created_at ?? '').localeCompare(a.updated_at ?? a.created_at ?? ''))[0] ?? null
+  )
+}
+
+// learnings.updated_at arrives with migration 009, and the app ships before the
+// SQL is pasted by hand. Without the retry, saving a learning would fail
+// outright in that window — the one failure this whole change exists to prevent. PGRST204 is PostgREST's "column not in the schema cache".
+async function writeLearning(row, id) {
+  const write = body =>
+    id
+      ? supabase.from('learnings').update(body).eq('id', id)
+      : supabase.from('learnings').insert(body)
+
+  let { error } = await write({ ...row, ...touch() })
+  if (error && (error.code === 'PGRST204' || error.code === '42703')) {
+    ;({ error } = await write(row))
+  }
+  if (error) throw new Error(`Could not save that learning: ${error.message}`)
+}
+
 // Resolves a short id, a full uuid, or the activity's name. The id is what the
 // model is looking at, but the name is what it has just been talking about, and
 // failing a cancel because it typed "Krimml Waterfalls" instead of #a1b2c3 is a
@@ -506,17 +580,60 @@ const EXECUTORS = {
     }
   },
 
+  // One row per tag, replaced rather than appended, for the same reason
+  // add_activity updates a row with the same name on the same date: a
+  // preference is stated once and then restated, sharpened or reversed, and
+  // three rows under three spellings of "naps" is not a memory, it's a pile.
+  // The agent reading "prefers museums" and "not another museum" side by side,
+  // undated, has learned less than if it had been told neither.
+  //
+  // Replacing is also the correction path, which is why there is no
+  // update_learning to go with forget_learning.
   async save_learning(input) {
-    const { error } = await supabase.from('learnings').insert({
+    const tag = normalizeTag(input.tag)
+    if (!tag) throw new Error('A learning needs a tag — a short kebab-case topic like "pacing" or "high-chair".')
+
+    const existing = await findLearning(tag)
+    const row = {
       type: input.type,
-      tag: input.tag,
+      tag,
       note: input.note,
       source_message: input.source_message ?? null,
-    })
-    if (error) throw new Error(`Could not save learning: ${error.message}`)
+    }
+
+    if (existing) {
+      await writeLearning(row, existing.id)
+      return {
+        modelText: `Updated what you'd learned about "${tag}". It now reads "${input.note}", replacing "${existing.note}", which is gone from your context.`,
+        userLine: `Updated what I'd learned — ${input.note}`,
+      }
+    }
+
+    await writeLearning(row)
     return {
-      modelText: `Noted: [${input.type}] ${input.tag}. This will inform future suggestions.`,
-      userLine: `Noted for next time — ${input.tag}`,
+      modelText: `Learned: [${input.type}] ${tag} — "${input.note}". This is in your context on every future message, in this session and every later one. Tell the user you'll remember it.`,
+      userLine: `I'll remember — ${input.note}`,
+    }
+  },
+
+  // A real delete, unlike rejectRecommendation's soft one. Nothing re-proposes a
+  // learning, so there is nothing to protect against; and a learning the agent
+  // over-read is exactly the thing that should leave no trace.
+  async forget_learning(input) {
+    const tag = normalizeTag(input.tag)
+    const existing = tag ? await findLearning(tag) : null
+    if (!existing) {
+      return {
+        modelText: `Nothing is recorded under "${input.tag}", so nothing was forgotten. Read the tags off "What You've Learned" in your context.`,
+        userLine: `Nothing to forget — no "${input.tag}"`,
+      }
+    }
+
+    const { error } = await supabase.from('learnings').delete().eq('id', existing.id)
+    if (error) throw new Error(`Could not forget that: ${error.message}`)
+    return {
+      modelText: `Forgot "${existing.tag}" — "${existing.note}". It's out of your context from your next message.`,
+      userLine: `Forgot — ${existing.note}`,
     }
   },
 

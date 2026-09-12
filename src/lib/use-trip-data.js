@@ -12,6 +12,7 @@ import {
   addPackingItem,
   deletePackingItem,
   fetchTripData,
+  forgetLearning,
   keepJournalEntry,
   keepRecommendation,
   rejectRecommendation,
@@ -27,6 +28,7 @@ const EMPTY = {
   activities: [],
   recommendations: [],
   journal: [],
+  learnings: [],
   packing: [],
 }
 
@@ -122,6 +124,11 @@ export function useTripData() {
     [applyRow],
   )
 
+  const forgetLearned = useCallback(async id => {
+    await forgetLearning(id)
+    setData(prev => ({ ...prev, learnings: prev.learnings.filter(l => l.id !== id) }))
+  }, [])
+
   const setPacked = useCallback(
     async (id, packed, by) => applyRow('packing', await setPackingItemPacked(id, packed, by)),
     [applyRow],
@@ -150,6 +157,7 @@ export function useTripData() {
     rejectRec,
     keepJournal,
     saveJournal,
+    forgetLearned,
     setPacked,
     addPacking,
     removePacking,

@@ -23,7 +23,7 @@ There is no test suite.
 | `session1-gaps.md` | What the spec promises that the code doesn't do yet, with the decisions needed to close each gap. Start here before implementing. |
 | `session2-spec.md` | The next three PRs — auth, chat sessions, live flight status — in build order. Supersedes gap 8, and the realtime and day-plan items in `session1-gaps.md`. |
 | `design-spec.md` | Design tokens, screens, patterns. |
-| `src/data/traveler-profile.js` | Long-term traveller preferences, injected into every system prompt. |
+| `src/data/traveler-profile.js` | Long-term traveller preferences, injected into every system prompt. Its short-term counterpart is the `learnings` table, written by `save_learning`. |
 | `src/data/region-guide.js` | Standing research for the Salzburg region — what to do, what to skip, where every hike shortens. Also injected into every system prompt. |
 
 ## Architecture
@@ -152,6 +152,16 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   trip's research under one set of assumptions.
 - **Trip data** lives in Supabase and is mutable by both users. The traveller
   profile and the region guide are the only two files.
+- **`learnings` is the third preference store, and it outranks the other two on
+  recency.** The profile is the long-term record, edited by hand; the region
+  guide is one trip's research; `learnings` rows are what the travellers have
+  actually said in chat, each carrying the quote that produced it. The system
+  prompt tells the agent to act on the newer learning *and say so out loud* when
+  it contradicts the profile, rather than quietly picking one — because the fix
+  for a durable contradiction is a human editing `traveler-profile.js`, and that
+  only happens if someone is told. Don't resolve the conflict by copying a
+  learning into the profile from code; that's the `traveler-profile.md` drift
+  again, with the added problem that the file would then outlive the correction.
 - **The allowlist exists twice, deliberately.** `public.is_trip_member()`
   (`supabase-migration-003.sql`, mirrored in `supabase-schema.sql`) is the
   enforcement; `TRIP_MEMBERS` in `src/lib/auth.js` is how the UI knows to show "not
@@ -198,8 +208,8 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
   recommendations under a separate "Awaiting Review" heading). If you add a write
   path, respect this — don't insert straight to `kept`.
-- **Nine tools write live, and deliberately so.** The review gate exists for
-  things the agent *proposes*; these nine record something the travellers have
+- **Eleven tools write live, and deliberately so.** The review gate exists for
+  things the agent *proposes*; these eleven record something the travellers have
   already decided, and making them tap Keep on their own booking is bureaucracy:
   - `add_activity` and `add_packing_item` — `packing_items` has no `status`
     because an unticked checkbox is already its own review, and `activities.status`
@@ -219,11 +229,21 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
     told. `accommodation.status` (`booked` / `researching`) carries the only
     hedge; a place they're merely considering is still a `save_recommendation`.
 
+  - `save_learning` and `forget_learning` — **the only memory the agent has of
+    anything either traveller has said.** `buildSystemPrompt()` rebuilds from the
+    tables every turn and the transcript is bounded by the session, so a
+    preference stated in chat and not written to `learnings` is gone by the next
+    reply, and was never visible on the other phone at all. The gate that catches
+    a wrong recommendation is one tap; the gate that would catch a wrong learning
+    is the Saved tab, after the fact — which is the trade, because a preference
+    is usually stated in passing and stopping to confirm it would train them out
+    of saying it.
+
   Each is visibly attributed — `packing_items.added_by` marks agent-written rows,
-  and every one of the nine prints a `userLine` in the chat — so nothing the agent
-  writes appears silently.
-- **Three of the tools exist to change what an earlier one wrote.**
-  `update_activity`, `cancel_activity` and `remove_trip_fact`. Without them the
+  and every one of the eleven prints a `userLine` in the chat — so nothing the
+  agent writes appears silently.
+- **Four of the tools exist to change what an earlier one wrote.**
+  `update_activity`, `cancel_activity`, `remove_trip_fact` and `forget_learning`. Without them the
   record only accretes, and because `buildSystemPrompt()` rebuilds from the tables
   every turn, a stale row isn't clutter — it's the agent telling them next week to
   book something they booked today. Two consequences worth keeping:
@@ -240,6 +260,19 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   - `add_activity` updates a row with the same name on the same date instead of
     inserting a second one, because a plan firms up over several messages and the
     model keeps reaching for `add_activity` while it does.
+  - **`save_learning` replaces by tag**, for the same reason and a sharper one:
+    the tag is the handle (`normalizeTag` in `tools.js` decides what counts as
+    the same tag, migration 009 collapsed the pre-existing duplicates), and a
+    preference is stated, then restated, sharpened, and eventually reversed.
+    "Prefers museums" and "not another museum" sitting side by side undated is
+    worse than either alone — the agent reading both has learned nothing. So
+    there is no `update_learning`: saving the tag again *is* the update, and
+    `forget_learning` is only for something the agent got wrong. `updated_at` is
+    therefore when the current version was learned, and it's what the prompt
+    prints and both lists sort on. Both sorts happen in JS, not in the query,
+    because ordering on a column a database without migration 009 doesn't have
+    fails the whole select — which would read as "no learnings" and silently wipe
+    the agent's memory rather than degrade.
 - **A card shows what you need at the door; the notes are for the agent.** The
   Stay card is dates, check-in window and a maps link; the Car card is two times,
   two places and the reference. `accommodation.notes` and `car_rental.notes` still

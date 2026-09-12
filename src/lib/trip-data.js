@@ -105,6 +105,19 @@ export async function fetchCarRental() {
   return data
 }
 
+/**
+ * Newest first, sorted here rather than in the query: updated_at only exists
+ * after migration 009, and ordering on a column the database doesn't have yet
+ * fails the whole select.
+ */
+export async function fetchLearnings() {
+  const { data, error } = await supabase.from('learnings').select('*')
+  if (error) throw new Error(`Couldn't load what the agent has learned: ${error.message}`)
+  return [...(data ?? [])].sort((a, b) =>
+    (b.updated_at ?? b.created_at ?? '').localeCompare(a.updated_at ?? a.created_at ?? ''),
+  )
+}
+
 export const FETCHERS = {
   trip: fetchTrip,
   flights: fetchFlights,
@@ -113,22 +126,43 @@ export const FETCHERS = {
   activities: fetchActivities,
   recommendations: fetchRecommendations,
   journal: fetchJournal,
+  learnings: fetchLearnings,
   packing: fetchPacking,
 }
 
 export async function fetchTripData() {
-  const [trip, flights, accommodation, carRental, activities, recommendations, journal, packing] =
-    await Promise.all([
-      fetchTrip(),
-      fetchFlights(),
-      fetchAccommodation(),
-      fetchCarRental(),
-      fetchActivities(),
-      fetchRecommendations(),
-      fetchJournal(),
-      fetchPacking(),
-    ])
-  return { trip, flights, accommodation, carRental, activities, recommendations, journal, packing }
+  const [
+    trip,
+    flights,
+    accommodation,
+    carRental,
+    activities,
+    recommendations,
+    journal,
+    learnings,
+    packing,
+  ] = await Promise.all([
+    fetchTrip(),
+    fetchFlights(),
+    fetchAccommodation(),
+    fetchCarRental(),
+    fetchActivities(),
+    fetchRecommendations(),
+    fetchJournal(),
+    fetchLearnings(),
+    fetchPacking(),
+  ])
+  return {
+    trip,
+    flights,
+    accommodation,
+    carRental,
+    activities,
+    recommendations,
+    journal,
+    learnings,
+    packing,
+  }
 }
 
 // ── mutations (user-initiated only) ────────────────────────────────────────
@@ -203,6 +237,18 @@ export async function addPackingItem({ name, category, addedBy }) {
       .single(),
     "Couldn't add that",
   )
+}
+
+/**
+ * Forgetting is the point of showing learnings at all. The agent writes them
+ * from things said in passing, so some of them will be things nobody meant —
+ * and an over-read preference that can't be deleted quietly bends every future
+ * suggestion. A real delete, for the same reason deletePackingItem is one:
+ * nothing re-proposes a learning, so there is nothing to protect against.
+ */
+export async function forgetLearning(id) {
+  const { error } = await supabase.from('learnings').delete().eq('id', id)
+  if (error) throw new Error(`Couldn't forget that: ${error.message}`)
 }
 
 /**

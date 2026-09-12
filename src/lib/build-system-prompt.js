@@ -43,6 +43,14 @@ export async function buildSystemPrompt() {
   const agenda = activities?.filter(a => a.status !== 'cancelled') ?? []
   const cancelled = activities?.filter(a => a.status === 'cancelled') ?? []
 
+  // Newest first, and sorted here rather than in the query: updated_at only
+  // exists after migration 009, and ordering on a column the database doesn't
+  // have yet errors the whole select — which would read as "no learnings" and
+  // silently wipe the agent's memory rather than degrade.
+  const learned = [...(learnings ?? [])].sort((a, b) =>
+    (b.updated_at ?? b.created_at ?? '').localeCompare(a.updated_at ?? a.created_at ?? ''),
+  )
+
   const kept = recommendations?.filter(r => r.status === 'kept') ?? []
   const pending = recommendations?.filter(r => r.status === 'pending') ?? []
 
@@ -51,6 +59,22 @@ export async function buildSystemPrompt() {
   // only grows. Six characters of the uuid, which is what shortId slices.
   const formatActivity = a =>
     `- [#${a.id.slice(0, 6)}] ${a.date}${a.time ? ` ${a.time}` : ''}: ${a.name}${a.location ? ` @ ${a.location}` : ''} — ${a.status ?? 'booked'}${a.notes ? ` · ${a.notes}` : ''}`
+
+  // The quote is carried into the prompt, not just stored: the note is the
+  // agent's paraphrase, and a paraphrase is what drifts. Seeing "I think
+  // Mirabell Gardens is a good idea for that day" again is what lets it tell a
+  // stated preference from something it inferred once and has been compounding
+  // on ever since.
+  const formatLearning = l => {
+    const when = (l.updated_at ?? l.created_at ?? '').slice(0, 10)
+    const said = l.source_message?.trim().replace(/\s+/g, ' ')
+    return [
+      `- [${l.type}] ${l.tag}: ${l.note}${when ? ` (learned ${when})` : ''}`,
+      said ? `    they said: "${said.length > 160 ? `${said.slice(0, 157)}…` : said}"` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
 
   const formatRec = r =>
     `- [${r.category}] ${r.name}${r.source ? ` (via ${r.source})` : ''}${r.visited ? ' ✓ visited' : ''}${r.rating ? ` ${r.rating}/5` : ''}${r.notes ? ` — ${r.notes}` : ''}`
@@ -119,10 +143,10 @@ export async function buildSystemPrompt() {
       ? journal.map(j => `### ${j.date} (${j.rating}/5, energy: ${j.energy_level})\n${j.what_we_did || ''}${j.notes ? `\nNotes: ${j.notes}` : ''}${j.want_more_of ? `\nWant more: ${j.want_more_of}` : ''}${j.want_less_of ? `\nWant less: ${j.want_less_of}` : ''}`).join('\n\n')
       : 'No journal entries yet.',
     '',
-    `## Agent Learnings (extracted from past conversations)`,
-    learnings?.length
-      ? learnings.map(l => `- [${l.type}] ${l.tag}: ${l.note}`).join('\n')
-      : 'No learnings yet.',
+    `## What You've Learned (standing preferences, from things they've said in chat)`,
+    `This is your memory of the travellers. Every line was written by save_learning from something one of them said — in this session or in one you can no longer see — and it is the only part of a past conversation that reaches you. Weigh it like the traveller profile: the profile is the long-term record, these are the newer signal about the same family, so act on the learning and say out loud when it contradicts the profile, rather than quietly picking one.`,
+    `The tag is the handle. Reuse a tag with save_learning to replace that learning; use forget_learning only for one you got wrong.`,
+    learned.length ? learned.map(formatLearning).join('\n') : "You haven't learned anything about them yet beyond the profile above.",
     '',
     `## Packing`,
     `Strategy: ${PACKING_STRATEGY}`,
@@ -138,11 +162,15 @@ export async function buildSystemPrompt() {
     `- Always check opening hours and booking requirements before recommending anything.`,
     `- Flag nap-time conflicts, stroller issues, and travel distances proactively.`,
     `- Use your tools as part of answering, not instead of answering. Save the place *and* reply.`,
-    `- Everything you know about this trip is the context above, rebuilt from the database on every message. Chat scrollback is not memory: if the user tells you something durable and you don't write it with a tool, it is gone by your next reply. Bookings and flight changes go to save_accommodation and save_flight; standing facts that fit nowhere else go to note_trip_fact.`,
+    `- Everything you know about this trip is the context above, rebuilt from the database on every message. Chat scrollback is not memory: if the user tells you something durable and you don't write it with a tool, it is gone by your next reply — and to the other traveller, on the other phone, it never existed. Bookings and flight changes go to save_accommodation and save_flight; anything about what they like, want or won't do goes to save_learning; standing facts that fit nowhere else go to note_trip_fact.`,
+    `- Listen for preferences, not just instructions. "I think Mirabell Gardens is a good idea for that day" is both a plan and a preference — add_activity records the plan, save_learning records what it tells you about the kind of day they want, and only the second one still helps you next week. The same goes for a reason ("we'd rather not be indoors all morning"), a reaction ("that was too much walking") and a refusal ("not another church"). If you can imagine wanting to know it while planning a different day, save it.`,
+    `- When you suggest something and one of them pushes back, the pushback is the signal. Don't just switch your suggestion — write down why it was wrong under a tag you can reuse. Getting it right the second time is worth nothing if you have to be corrected a third.`,
+    `- Before you suggest anything, read "What You've Learned" and use it. If a learning speaks to what you're proposing, say so in the reply — "you said you'd rather be outdoors in the morning, so…". They need to be able to tell that you remembered, and a preference applied silently is indistinguishable from luck.`,
     `- Don't save a place that's already under Saved Recommendations or Awaiting Review. Read those two lists before calling save_recommendation, and when you recommend something that's already there, say so instead of saving it again.`,
     `- Two of your tools write something the user has to confirm: recommendations wait for Keep / Not this one, journal entries for Edit / Keep. For those, say "I've saved that for you to confirm", never "that's now on your itinerary".`,
-    `- The other nine write live, because the user is reporting a decision rather than asking you to suggest one: add_activity, update_activity, cancel_activity, add_packing_item, save_accommodation, save_flight, save_car_rental, note_trip_fact and remove_trip_fact all appear immediately. Say so plainly — "that's on your agenda now". The cost of that is that you must only use them for what the user has actually decided, never for something you're proposing.`,
+    `- The other eleven write live, because the user is reporting a decision rather than asking you to suggest one: add_activity, update_activity, cancel_activity, add_packing_item, save_accommodation, save_flight, save_car_rental, note_trip_fact, remove_trip_fact, save_learning and forget_learning all appear immediately. Say so plainly — "that's on your agenda now". The cost of that is that you must only use them for what the user has actually decided, never for something you're proposing.`,
     `- A plan is worth recording before it's booked. "Let's do Hallstatt on Monday" is add_activity with status "planned" — the agenda is how they see the shape of a day, and a decision you only acknowledged in chat is gone by your next message. The line you must not cross is pinning something you suggested and they haven't agreed to; that stays a recommendation however good it is.`,
+    `- Keep your memory current the same way you keep the record current. A preference that has sharpened or reversed is save_learning under the tag that's already there, which replaces it; forget_learning is only for something you got wrong. Two rows saying opposite things about naps is worse than either one alone.`,
     `- Keep the record current, not just growing. When something changes, change the row: a planned outing that gets booked is update_activity with status "booked", a dropped one is cancel_activity, and a line in the trip notes that has been resolved is remove_trip_fact. A stale row isn't clutter — it's you telling them next week to book something they booked today.`,
     `- Before suggesting anything to pack, read the packing strategy above. Six days of clothes is deliberate — there's a mid-trip laundry — so don't advise packing for eleven.`,
     `- Save liberally. A wrong save is one tap to undo; a place mentioned once and never recorded is gone.`,

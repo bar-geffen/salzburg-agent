@@ -426,6 +426,7 @@ function TripApp({ sender }) {
       // tab it feeds keeps showing yesterday's answer until the next focus.
       trip.refreshTable('recommendations')
       trip.refreshTable('journal')
+      trip.refreshTable('learnings')
       trip.refreshTable('activities')
       trip.refreshTable('packing')
       trip.refreshTable('accommodation')
@@ -605,11 +606,13 @@ function TripApp({ sender }) {
       {tab === 'saved' && (
         <Saved
           recommendations={trip.recommendations}
+          learnings={trip.learnings}
           loading={trip.loading}
           error={trip.error}
           onRetry={trip.refreshAll}
           onKeep={trip.keepRec}
           onReject={trip.rejectRec}
+          onForget={trip.forgetLearned}
         />
       )}
 
