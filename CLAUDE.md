@@ -67,9 +67,10 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   It matches on the name with accents and punctuation stripped, so "Cafe Bazar"
   won't join "Café Bazar" on the list. It has to be enforced here: the agent
   re-proposes its own standing suggestions on every day plan, and those places are
-  already rows. A rejected match is reported back and not re-added — but
-  note there is currently no way to *un*-reject a row from the UI, so a place
-  turned down once can only come back via SQL.
+  already rows. A rejected match is reported back and not re-added.
+  Rejecting is one-way, from the app and from `remove_recommendation` alike: a
+  place turned down once can only come back via SQL, which is why
+  `findRecommendation()` reports an ambiguous name rather than picking a row.
 - `src/lib/trip-data.js` owns every read of the trip tables **and** the seven
   user-initiated mutations. `src/lib/use-trip-data.js` wraps it in a hook that
   loads once and refetches on focus. Tabs are presentational; chat state and the
@@ -208,8 +209,8 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
   recommendations under a separate "Awaiting Review" heading). If you add a write
   path, respect this — don't insert straight to `kept`.
-- **Eleven tools write live, and deliberately so.** The review gate exists for
-  things the agent *proposes*; these eleven record something the travellers have
+- **Twelve tools write live, and deliberately so.** The review gate exists for
+  things the agent *proposes*; these twelve record something the travellers have
   already decided, and making them tap Keep on their own booking is bureaucracy:
   - `add_activity` and `add_packing_item` — `packing_items` has no `status`
     because an unticked checkbox is already its own review, and `activities.status`
@@ -239,11 +240,22 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
     is usually stated in passing and stopping to confirm it would train them out
     of saying it.
 
+  - `remove_recommendation` — the counterpart to `save_recommendation`, and the
+    only one of the twelve that *un*-writes a reviewable row. Keeping a place is
+    the travellers' tap; turning one down is not, because the agent is what put
+    most of them on the list in the first place. Without it the agent could add
+    to the review list and never subtract, so "drop the duck-feeding lake walk"
+    got an apology and an instruction to go and tap "Not this one" — the app
+    asking the user to do the app's job. It writes `rejected` through
+    `rejectRecommendation()` in `trip-data.js`, the same function both buttons
+    call, so removing a place and never proposing it again stay one act.
+
   Each is visibly attributed — `packing_items.added_by` marks agent-written rows,
-  and every one of the eleven prints a `userLine` in the chat — so nothing the
+  and every one of the twelve prints a `userLine` in the chat — so nothing the
   agent writes appears silently.
-- **Four of the tools exist to change what an earlier one wrote.**
-  `update_activity`, `cancel_activity`, `remove_trip_fact` and `forget_learning`. Without them the
+- **Five of the tools exist to change what an earlier one wrote.**
+  `update_activity`, `cancel_activity`, `remove_trip_fact`, `forget_learning` and
+  `remove_recommendation`. Without them the
   record only accretes, and because `buildSystemPrompt()` rebuilds from the tables
   every turn, a stale row isn't clutter — it's the agent telling them next week to
   book something they booked today. Two consequences worth keeping:
@@ -253,6 +265,12 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
     prefix (falling back to an exact name match, and reporting ambiguity rather
     than picking). Change the prefix length in one place and you must change it in
     the other, or the agent will hand back ids nothing resolves.
+  - **Recommendations are addressed by name, not by an id.** There is no `[#...]`
+    prefix on those lines: they're named places and the model is quoting a name
+    it can see, so `findRecommendation()` in `tools.js` matches on the same
+    accent- and punctuation-stripped form `save_recommendation` dedupes with. It
+    falls back to the row name *containing* the quote, never the reverse —
+    otherwise "Hallstatt boat and the salt mine" would remove "Hallstatt".
   - **`cancel_activity` marks, it doesn't delete.** The row leaves the Agenda but
     stays in the agent's context under a "Cancelled" heading, for the same reason
     `recommendations.status` has a `rejected` value: the next day plan would

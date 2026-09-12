@@ -17,17 +17,18 @@
 // the travellers have already taken, and an unticked checkbox is already its own
 // review. Both are visibly attributed in the UI and removable in one tap.
 //
-// Three of these tools exist to change what an earlier one wrote:
-// update_activity, cancel_activity and remove_trip_fact. Without them the trip
-// record only ever grows -- a plan that moved leaves two rows, and the note
-// saying a leg is unbooked outlives the booking. Every turn rebuilds the prompt
-// from these tables, so a stale row is not clutter, it is the agent being wrong
-// out loud on every future message.
+// Five of these tools exist to change what an earlier one wrote:
+// update_activity, cancel_activity, remove_trip_fact, forget_learning and
+// remove_recommendation. Without them the trip record only ever grows -- a plan
+// that moved leaves two rows, the note saying a leg is unbooked outlives the
+// booking, and a place they turned down sits on the review list being offered
+// back to them. Every turn rebuilds the prompt from these tables, so a stale row
+// is not clutter, it is the agent being wrong out loud on every future message.
 
 import { supabase } from './supabase'
 import { formatDay, formatRange } from './dates'
 import { PACKING_CATEGORIES, categoryLabel } from './packing'
-import { addPackingItem } from './trip-data'
+import { addPackingItem, rejectRecommendation } from './trip-data'
 
 export const TOOLS = [
   {
@@ -64,6 +65,27 @@ One exception to saving liberally: read "Saved Recommendations" and "Awaiting Re
         },
       },
       required: ['name', 'category'],
+    },
+  },
+
+  {
+    name: 'remove_recommendation',
+    description: `Take a place off the saved list — off Awaiting Review, or off Saved Recommendations.
+
+The counterpart to save_recommendation. Call it whenever they turn a saved place down, or tell you one shouldn't be there: it does exactly what "Not this one" does in the app, so never tell them to go and tap it themselves. The place leaves both lists and you stop proposing it.
+
+Examples:
+- "drop the duck-feeding lake walk" → remove it
+- "we're not doing Hallstatt after all" → remove it, and cancel_activity too if it's on the agenda
+- you saved the same place twice under two spellings → remove the wrong one
+
+Name it as it appears in your context. Don't remove on a guess — if two saved places could be the one they mean, ask which.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'The place to remove, as it appears in your context' },
+      },
+      required: ['name'],
     },
   },
 
@@ -530,6 +552,32 @@ async function findActivity(ref) {
   return candidates[0]
 }
 
+// Recommendations carry no short id in the prompt -- they are named places and
+// the model is quoting a name it can see. Exact match first, then the row whose
+// name contains what it quoted ("duck feeding" for "Lake walk with duck
+// feeding"), never the other way round: matching a row name inside the quote
+// would let "Hallstatt boat and the salt mine" take out "Hallstatt". Ambiguity
+// is reported rather than guessed at, because removing the wrong place is only
+// recoverable in SQL.
+async function findRecommendation(ref) {
+  const needle = normalizeName(String(ref ?? ''))
+  if (!needle) throw new Error('No place was named. Read the names off Saved Recommendations and Awaiting Review.')
+
+  const { data, error } = await supabase.from('recommendations').select('id, name, status')
+  if (error) throw new Error(`Could not read the saved list: ${error.message}`)
+
+  const rows = data ?? []
+  let hits = rows.filter(r => normalizeName(r.name) === needle)
+  if (!hits.length) hits = rows.filter(r => normalizeName(r.name).includes(needle))
+
+  if (hits.length > 1) {
+    throw new Error(
+      `"${ref}" matches more than one saved place: ${hits.map(r => r.name).join(', ')}. Call again with one of those names exactly.`,
+    )
+  }
+  return hits[0] ?? null
+}
+
 async function readTrip() {
   const { data, error } = await supabase.from('trip').select('id, notes').limit(1).maybeSingle()
   if (error) throw new Error(`Could not read the trip: ${error.message}`)
@@ -577,6 +625,34 @@ const EXECUTORS = {
     return {
       modelText: `Saved "${input.name}" to the review list. Tell the user it's saved; they'll confirm it later.`,
       userLine: `Saved ${input.name} for review`,
+    }
+  },
+
+  // The counterpart to save_recommendation, and the reason "drop that one" is a
+  // sentence rather than a trip to the Saved tab. It writes the same 'rejected'
+  // status the "Not this one" button writes -- which makes it both a removal and
+  // a promise, since build-system-prompt.js drops rejected rows entirely and the
+  // agent therefore cannot offer the place back next week.
+  async remove_recommendation(input) {
+    const match = await findRecommendation(input.name)
+    if (!match) {
+      return {
+        modelText: `Nothing on the saved list matches "${input.name}", so nothing was removed. Read the names off Saved Recommendations and Awaiting Review rather than guessing one.`,
+        userLine: `Nothing to remove — no match for "${input.name}"`,
+      }
+    }
+    if (match.status === 'rejected') {
+      return {
+        modelText: `"${match.name}" had already been taken off the list. Nothing changed.`,
+        userLine: `${match.name} — already off the list`,
+      }
+    }
+
+    await rejectRecommendation(match.id)
+    const where = match.status === 'kept' ? 'Saved Recommendations' : 'Awaiting Review'
+    return {
+      modelText: `Removed "${match.name}" from ${where}. It's off the Saved tab now and out of your context from your next message — don't propose it again.`,
+      userLine: `Removed ${match.name} from the list`,
     }
   },
 
