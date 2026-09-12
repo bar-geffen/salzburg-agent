@@ -15,6 +15,7 @@ import {
 import { TOOLS, executeTool } from './lib/tools'
 import { useTripData } from './lib/use-trip-data'
 import { todayISO, tripSubtitle } from './lib/dates'
+import Icon from './components/Icon'
 import TabBar from './components/TabBar'
 import Chat from './components/Chat'
 import SessionList from './components/SessionList'
@@ -51,7 +52,15 @@ function TripApp({ sender }) {
   const [sessions, setSessions] = useState(null)
   const [sessionId, setSessionId] = useState(null)
   const [sessionTitle, setSessionTitle] = useState('')
-  const [showSessions, setShowSessions] = useState(false)
+
+  // Which of the Chat tab's two surfaces is showing. Local to Chat and reset by
+  // every tab change, because a tab tap has to land on the thread — arriving at
+  // the Chats list because that's where you left it a tab ago is disorienting.
+  const [view, setView] = useState('chat')
+
+  // Bumped to tell Chat to focus the composer. A counter rather than a flag:
+  // tapping New chat twice has to focus twice.
+  const [focusSignal, setFocusSignal] = useState(0)
 
   // Three mirrors of state, for the code that can't see a fresh render: the
   // send path (which would otherwise build the API history from a stale
@@ -174,13 +183,14 @@ function TripApp({ sender }) {
   }
 
   function openSessions() {
-    setShowSessions(true)
-    // Cheap, and it keeps the counts and the ordering honest without a timer.
+    setView('chats')
+    // Cheap, and it keeps the counts, the ordering and the "chat 3 of 7" honest
+    // without a timer.
     loadSessions()
   }
 
   async function selectSession(id) {
-    setShowSessions(false)
+    setView('chat')
     if (id === sessionId) return
     const chosen = (sessions ?? []).find(s => s.id === id)
     setSessionId(id)
@@ -200,12 +210,19 @@ function TripApp({ sender }) {
    * tap leaves an empty session in the list forever.
    */
   function startNewChat() {
-    setShowSessions(false)
+    setView('chat')
     setSessionId(null)
     sessionIdRef.current = null
     setSessionTitle('')
     setMessages([])
     setError('')
+    setFocusSignal(n => n + 1)
+  }
+
+  /** A tab tap always lands on the thread, never on the Chats list. */
+  function selectTab(next) {
+    setTab(next)
+    setView('chat')
   }
 
   /**
@@ -226,11 +243,14 @@ function TripApp({ sender }) {
     setSessions(prev => (prev ? prev.map(s => (s.id === id ? { ...s, title } : s)) : prev))
   }
 
-  async function sendMessage(e) {
+  /**
+   * `override` is the empty thread's starter prompts, which send the text they
+   * show rather than typing it into the input first — see STARTERS in Chat.jsx.
+   */
+  async function sendMessage(e, override) {
     e.preventDefault()
-    if (!input.trim() || loading) return
-
-    const text = input.trim()
+    const text = String(override ?? input).trim()
+    if (!text || loading) return
 
     // Sessions are created here, on the first message, rather than on the New
     // chat tap — see startNewChat.
@@ -434,75 +454,124 @@ function TripApp({ sender }) {
     }
   }
 
-  const pendingCount = trip.recommendations.filter(r => r.status === 'pending').length
-  const keptCount = trip.recommendations.filter(r => r.status === 'kept').length
-  const toPack = trip.packing.filter(p => !p.packed).length
-  const subtitle =
-    tab === 'saved'
-      ? [pendingCount > 0 && `${pendingCount} new`, `${keptCount} kept`].filter(Boolean).join(' · ')
-      : tab === 'packing'
-        ? trip.packing.length === 0
-          ? 'Nothing on the list'
-          : toPack === 0
-            ? 'All packed'
-            : `${toPack} to pack`
-        : tripSubtitle(trip.trip, today)
+  // Where the trip is, in words: 'Day 4 of 12 · Thu 20 Aug' once it's running,
+  // a countdown before. It labels the Agenda / Saved / Pack header, which used
+  // to carry each tab's own counts — those now live in the tabs themselves,
+  // where the things being counted are.
+  const tripLabel = tripSubtitle(trip.trip, today)
+
+  // Session navigation only exists when there are sessions. In legacy mode
+  // (migration 004 not yet run) the Chat tab keeps the plain title and the trip
+  // countdown, because there is nothing to switch between and no Chats list to
+  // reach — which is also where Refresh and Sign out live in that mode.
+  const switchable = tab === 'chat' && sessions !== null
+  const list = sessions ?? []
+  // 1-based, counted against the order SessionList renders. -1 while a new chat
+  // has no row yet, which is what hides the label rather than printing 'chat 0'.
+  const position = sessionId ? list.findIndex(s => s.id === sessionId) + 1 : 0
 
   return (
     <div className="app">
+      {/* Two rows: one that says where you are and what you can do from here,
+          then the tabs. The first row has three forms — the session switcher,
+          the Chats list's own bar, and the plain titled row used by the other
+          three tabs and by legacy mode. */}
       <header className="app-header">
-        <div className="app-titlebar">
-          {/* Title and actions share a row; the subtitle gets the full width
-              below them. Two actions plus the longest subtitle ("STARTS TUE 15
-              SEPT · IN 2 WEEKS") don't fit on one line at 375px. */}
-          <div className="app-title-row">
-            <span className="title">{TITLES[tab]}</span>
-            <div className="header-actions">
-              <button
-                type="button"
-                className="refresh"
-                onClick={refreshEverything}
-                disabled={trip.refreshing}
-              >
-                {trip.refreshing ? '…' : 'Refresh'}
-              </button>
-              {/* Rare, but it has to exist: a wrong-account sign-in is otherwise
-                  unrecoverable on a phone. Muted rather than accent — the design
-                  allows one accent action per screen and Refresh has it. */}
-              <button type="button" className="signout" onClick={handleSignOut}>
-                Sign out
-              </button>
-            </div>
-          </div>
-          {/* On Chat the subtitle is the session switcher, per session2-spec.md:
-              sessions organise the Chat tab rather than earning a fifth tab. It
-              stays the trip countdown in legacy mode, where there's nothing to
-              switch between. */}
-          {tab === 'chat' && sessions !== null ? (
+        {switchable && view === 'chat' && (
+          <div className="header-row">
+            {/* The switcher. The position label is what makes this read as
+                navigation rather than as a page title — without it the pill is
+                the old silently-tappable subtitle with a border. */}
+            <button type="button" className="switcher" onClick={openSessions}>
+              <span className="switcher-tile">
+                <Icon name="stack" size={18} />
+              </span>
+              <span className="switcher-text">
+                <span className="switcher-position">
+                  {position > 0 ? `Chat ${position} of ${list.length}` : 'New chat'}
+                </span>
+                {/* Empty while a new chat has no row yet — same fallback the
+                    design gives a session that somehow has no messages. */}
+                <span className="switcher-title">{sessionTitle || 'Untitled chat'}</span>
+              </span>
+              <span className="switcher-caret">
+                <Icon name="chevron-down" size={18} />
+              </span>
+            </button>
             <button
               type="button"
-              className="subtitle session-switch"
-              onClick={() => (showSessions ? setShowSessions(false) : openSessions())}
+              className="icon-btn-accent"
+              onClick={startNewChat}
+              aria-label="New chat"
             >
-              <span>{sessionTitle || 'New chat'}</span>
-              <span className="pack-caret">{showSessions ? '▲' : '▼'}</span>
+              <Icon name="plus" size={21} />
             </button>
-          ) : (
-            <span className="subtitle">{subtitle}</span>
-          )}
-        </div>
-        <TabBar value={tab} onChange={setTab} />
+          </div>
+        )}
+
+        {switchable && view === 'chats' && (
+          <div className="header-row">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setView('chat')}
+              aria-label="Back to the chat"
+            >
+              <Icon name="chevron-left" size={21} />
+            </button>
+            <span className="header-screen">
+              <Icon name="stack" size={19} />
+              <span className="header-screen-name">Chats</span>
+            </span>
+            <span className="header-count">{list.length}</span>
+          </div>
+        )}
+
+        {/* Legacy mode has no Chats list, so the two bits of app chrome stay in
+            the header there — on a row of their own, because the longest trip
+            label ("STARTS TUE 15 SEPT · IN 3 DAYS") and two mono-caps buttons
+            don't fit on one line at 375px. With sessions they live at the foot
+            of the Chats list, and the design gets this row back for the trip. */}
+        {sessions === null && (
+          <div className="header-chrome">
+            <button
+              type="button"
+              className="refresh"
+              onClick={refreshEverything}
+              disabled={trip.refreshing}
+            >
+              {trip.refreshing ? '…' : 'Refresh'}
+            </button>
+            <button type="button" className="signout" onClick={handleSignOut}>
+              Sign out
+            </button>
+          </div>
+        )}
+
+        {!switchable && (
+          <div className="header-row">
+            <span className="header-title-text">
+              <span className="header-label">{tripLabel}</span>
+              <span className="title">{TITLES[tab]}</span>
+            </span>
+          </div>
+        )}
+
+        <TabBar value={tab} onChange={selectTab} />
       </header>
 
       {!online && <div className="banner">Offline — changes will fail until you reconnect.</div>}
 
       {tab === 'chat' &&
-        (showSessions ? (
+        (switchable && view === 'chats' ? (
           <SessionList
-            sessions={sessions ?? []}
+            sessions={list}
             currentSessionId={sessionId}
             onSelect={selectSession}
             onNew={startNewChat}
+            onRefresh={refreshEverything}
+            refreshing={trip.refreshing}
+            onSignOut={handleSignOut}
           />
         ) : (
           <Chat
@@ -512,6 +581,7 @@ function TripApp({ sender }) {
             loading={loading}
             error={error}
             onSubmit={sendMessage}
+            focusSignal={focusSignal}
           />
         ))}
 

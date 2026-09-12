@@ -14,8 +14,9 @@ import { supabase } from './supabase'
 // much tighter leash than the chat request in App.jsx.
 const TITLE_TIMEOUT_MS = 15_000
 
-// Long enough that the list is scannable, short enough that it can't push the
-// header subtitle into a second line on a 375px phone.
+// Long enough that the list is scannable. The header's switcher pill ellipsises
+// rather than wrapping, so this is about the Chats list, where a title this long
+// already fills the card's width on a 375px phone.
 const MAX_TITLE = 60
 const FALLBACK_CHARS = 40
 
@@ -29,7 +30,9 @@ function unwrap({ data, error }, what) {
 const isMissingTable = error => error?.code === '42P01' || error?.code === 'PGRST205'
 
 /**
- * Every session, newest activity first, each with its message count.
+ * Every session, newest activity first, each carrying the three things the list
+ * renders beyond its title: how many messages it holds, who started it, and a
+ * topic key for its icon.
  *
  * Returns **null**, not [], when chat_sessions doesn't exist yet — the bundle
  * ships before someone pastes supabase-migration-004.sql into the SQL editor,
@@ -47,23 +50,77 @@ export async function fetchSessions() {
     throw new Error(`Couldn't load your chats: ${error.message}`)
   }
 
-  const counts = await fetchMessageCounts()
-  return data.map(session => ({ ...session, message_count: counts.get(session.id) ?? 0 }))
+  const stats = await fetchSessionStats()
+  return data.map(session => {
+    const stat = stats.get(session.id)
+    return {
+      ...session,
+      message_count: stat?.count ?? 0,
+      // The first user message's sender, per the design. started_by is the
+      // fallback rather than the source: it's right for every session the app
+      // created, but null on the one migration 004 backfilled, and that thread
+      // does have a first message to read it off.
+      starter: stat?.starter ?? session.started_by ?? null,
+      topic: topicFor(session.title),
+    }
+  })
 }
 
 /**
- * id -> count, in one request. A per-session `count` query would be one round
- * trip each; this pulls only the session_id column and tallies it here.
+ * id -> { count, starter }, in one request. A per-session query would be one
+ * round trip each; this pulls three narrow columns for every message and
+ * tallies them here. Deliberately not `content` — the list needs none of it,
+ * and the whole transcript of every chat is the one thing that would make this
+ * slow.
  */
-async function fetchMessageCounts() {
-  const { data, error } = await supabase.from('messages').select('session_id')
-  const counts = new Map()
-  // A count is decoration. If it fails, the list still lists.
-  if (error || !data) return counts
+async function fetchSessionStats() {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('session_id, role, sender')
+    .order('created_at', { ascending: true })
+
+  const stats = new Map()
+  // Counts and attribution are decoration. If this fails, the list still lists.
+  if (error || !data) return stats
   for (const row of data) {
-    if (row.session_id) counts.set(row.session_id, (counts.get(row.session_id) ?? 0) + 1)
+    if (!row.session_id) continue
+    const stat = stats.get(row.session_id) ?? { count: 0, starter: null }
+    stat.count += 1
+    // Ascending order, so the first user row we see is the opening message.
+    if (!stat.starter && row.role === 'user' && row.sender) stat.starter = row.sender
+    stats.set(row.session_id, stat)
   }
-  return counts
+  return stats
+}
+
+// Which icon a chat gets, matched on its title. The title is generated from the
+// opening exchange and is the only summary of a thread available without
+// loading it, so it's the honest thing to read — matching on the transcript
+// would mean fetching every message's content to draw a 19px glyph.
+//
+// Deliberately coarse, and it fails soft: an unmatched title gets `sparkle`,
+// which reads as "general chat" rather than as a wrong guess. An *untitled*
+// session gets `bubble`, because there's nothing to have guessed from.
+//
+// The terminator is `(?!\w)` rather than `\b`: a word ending in a non-ASCII
+// letter has no word boundary after it, so `/caf[eé]\b/` matches "cafe" and
+// silently misses "café" — the same accent trap save_recommendation has.
+const TOPICS = [
+  // Aerial lifts are matched before anything else, because the bare `car` in the
+  // day-trip pattern below otherwise claims "cable car" and files a mountain
+  // morning as a drive.
+  [/\b(cable.?car|gondola|funicular|chair.?lift)(?!\w)/i, 'peak'],
+  [/\b(driv\w*|car|day.?trip|hallstatt|road|parking|route|rental)(?!\w)/i, 'car'],
+  [/\b(eat\w*|ate|food|dinner|lunch|breakfast|caf[eé]\w*|restaurant\w*|cake|coffee|meal\w*|bakery|pizza)(?!\w)/i, 'fork'],
+  [/\b(hik\w*|walk\w*|peak|berg|mountain|summit|cable.?car|gondola|lake|swim\w*|trail)(?!\w)/i, 'peak'],
+  [/\b(arriv\w*|check.?(in|out)|apartment|stay\w*|flight|land\w*|airport)(?!\w)/i, 'pin'],
+]
+
+export function topicFor(title) {
+  const text = String(title ?? '').trim()
+  if (!text) return 'bubble'
+  for (const [pattern, icon] of TOPICS) if (pattern.test(text)) return icon
+  return 'sparkle'
 }
 
 /** One session's thread, oldest first. */

@@ -107,9 +107,43 @@ typed in by hand: the agent captures places as they come up in chat, they land
 sand-tinted at the top of Saved with `Keep` / `Not this one`, then settle into
 `Kept` as white cards.
 
+**Session switcher (Chat header).** A 52px white pill: 30px icon tile, then a mono
+caps position label (`CHAT 3 OF 7`) over the session name at 15/600, then a
+chevron. **The position label is load-bearing** — it is the only thing that makes
+the pill read as navigation rather than as the screen's title. Beside it, a 52px
+accent square holding `+`. Refresh and Sign out are not on this row; they sit at
+the foot of the Chats list.
+
+**Chats list.** Replaces the thread in place. An accent `New chat` row first, then
+`This week` / `Earlier` groups of 18px-radius cards: 38px topic tile, title at
+17/600, and a meta row of three icon pairs — clock + relative day, bubble + message
+count, coloured dot + the name of whoever started it.
+
+**Write strip.** What the agent saved while it was answering, under the reply:
+`#E9EFE9` on `#3D5A45`, radius 12, a 15px tick and 13/500 text, hugging the left
+edge. One strip per write. A failed write takes the Bar tint and drops the tick.
+
 **Forms.** 52px fields, 48px buttons, 44px minimum for any tap target. Labels sit
 above the field, never inside. Editing happens in place in the panel — **no modals.**
 
+## Icons
+
+Twenty stroke glyphs, hand-authored in `src/components/Icon.jsx` — no icon font, no
+library, no image assets. 24×24 viewBox, `fill: none`, `stroke: currentColor`,
+round caps and joins, `stroke-width: 1.6` (1.8 for `plus`, 2 for `send`, 2.2 for
+the tick inside the packing checkbox). Rendered at 13px inline with text and
+18–22px inside controls. **No filled glyphs.**
+
+`stack` `plus` `chevron-down` `chevron-right` `chevron-left` · `bubble` `calendar`
+`bookmark` `bag` `search` · `sparkle` `check` `clock` `pin` `rain` · `fork` `peak`
+`car` · `trash` `send`
+
+An icon is recognition, not the answer: the tab bar keeps its labels, and the
+category pills keep their words. Add a glyph only by transcribing it from the
+design — a path drawn to a different grid or weight reads as a different family.
+
 ## Radii
 
-`999px` pills · `18px` cards · `12px` small surfaces · `20/20/6/20` user bubbles.
+`999px` pills · `18px` cards · `14px` square controls (tabs, icon buttons, the
+switcher) · `12px` icon tiles and small surfaces · `9px` the packing checkbox ·
+`26px` the composer field · `20/20/6/20` user bubbles.

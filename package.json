@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "preview:design": "vite --config vite.preview.config.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

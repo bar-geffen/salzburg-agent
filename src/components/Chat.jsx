@@ -4,6 +4,13 @@
 
 import { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import Icon from './Icon'
+
+// Two openers on an empty thread. Phase-neutral on purpose: the app is used for
+// weeks before the trip and then every morning during it, and a starter that
+// says "tomorrow" is wrong for most of that window. Both are things the
+// traveller profile says these three actually ask for.
+const STARTERS = ['What should we do with a free morning?', 'Somewhere easy for lunch with Amir']
 
 export default function Chat({
   messages,
@@ -12,52 +19,67 @@ export default function Chat({
   loading,
   error,
   onSubmit,
+  focusSignal,
 }) {
   const endRef = useRef(null)
+  const inputRef = useRef(null)
   const isFirstRender = useRef(true)
 
   useEffect(() => {
-    // Jump instantly when arriving back from another tab, animate for new
-    // messages — otherwise returning to Chat scrolls the whole history past you.
+    // Jump instantly when arriving back from another tab or the Chats list,
+    // animate for new messages — otherwise returning to Chat scrolls the whole
+    // history past you.
     endRef.current?.scrollIntoView({ behavior: isFirstRender.current ? 'auto' : 'smooth' })
     isFirstRender.current = false
   }, [messages, loading])
+
+  // A counter, not a boolean: tapping New chat twice has to focus twice, and an
+  // already-true flag wouldn't fire the effect again.
+  useEffect(() => {
+    if (focusSignal) inputRef.current?.focus()
+  }, [focusSignal])
 
   return (
     <>
       <div className="chat-scroll" role="tabpanel">
         {messages.length === 0 && !loading && (
           <div className="chat-empty">
-            <span className="chat-empty-title">Salzburg, 15–26 September</span>
-            <span className="chat-empty-body">
-              Ask me anything — what to do on a given day, save a place someone recommended, or
-              tell me how a day went. I'll keep the agenda and the saved list up to date.
+            <span className="chat-empty-head">
+              <Icon name="sparkle" size={18} />
+              <span className="chat-empty-title">New chat</span>
             </span>
-          </div>
-        )}
-
-        {messages.map(msg => {
-          const isUser = msg.role === 'user'
-          const tint = msg.sender === 'Ori' ? 'msg--ori' : 'msg--bar'
-          return (
-            <div
-              key={msg.id}
-              className={`msg ${isUser ? `msg--user ${tint}` : 'msg--assistant'}`}
-            >
-              {isUser && <span className="sender-tag">{msg.sender}</span>}
-              <div className="msg-body">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
-              </div>
-              {!isUser && <Saves lines={savesOf(msg)} />}
+            <span className="chat-empty-body">
+              Ask about a day, save a place someone recommended, or tell me how today went. I'll
+              keep the agenda and the saved list up to date.
+            </span>
+            <div className="chat-starters">
+              {STARTERS.map(text => (
+                <button
+                  key={text}
+                  type="button"
+                  className="chat-starter"
+                  disabled={loading}
+                  // Sent straight away rather than dropped into the input: a
+                  // starter you still have to press Send on is a slower way of
+                  // typing, not a shortcut.
+                  onClick={e => onSubmit(e, text)}
+                >
+                  {text}
+                </button>
+              ))}
             </div>
-          )
-        })}
-
-        {loading && (
-          <div className="msg msg--assistant">
-            <div className="msg-body is-loading">Thinking…</div>
           </div>
         )}
+
+        {messages.map(msg =>
+          msg.role === 'user' ? (
+            <UserMessage key={msg.id} msg={msg} />
+          ) : (
+            <AgentMessage key={msg.id} msg={msg} />
+          ),
+        )}
+
+        {loading && <Typing />}
 
         {error && <div className="error-inline">{error}</div>}
 
@@ -70,17 +92,83 @@ export default function Chat({
       <form className="composer" onSubmit={onSubmit}>
         <div className="composer-row">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={e => onInputChange(e.target.value)}
             placeholder="Ask your travel agent…"
           />
-          <button type="submit" className="send" disabled={loading || !input.trim()} aria-label="Send">
-            ↑
+          <button
+            type="submit"
+            className="send"
+            disabled={loading || !input.trim()}
+            aria-label="Send"
+          >
+            <Icon name="send" size={22} />
           </button>
         </div>
       </form>
     </>
+  )
+}
+
+function UserMessage({ msg }) {
+  const ori = msg.sender === 'Ori'
+  return (
+    <div className={`msg msg--user ${ori ? 'msg--ori' : 'msg--bar'}`}>
+      <span className="sender-tag">
+        <span className="sender-dot" aria-hidden="true" />
+        {msg.sender}
+      </span>
+      <div className="msg-body">
+        <ReactMarkdown>{msg.content}</ReactMarkdown>
+      </div>
+    </div>
+  )
+}
+
+function AgentMessage({ msg }) {
+  const { lead, rest } = splitLead(msg.content)
+
+  return (
+    <div className="msg msg--assistant">
+      <div className="msg-body">
+        {/* The sparkle marks the reply as the agent's. Where the reply opens with
+            a heading — most day plans do — it sits on that line, which is what
+            the design draws; otherwise it stands alone above the prose rather
+            than being dropped, because then nothing would identify the speaker. */}
+        <div className={`agent-head${lead ? '' : ' agent-head--bare'}`}>
+          <Icon name="sparkle" size={16} />
+          {lead && <ReactMarkdown>{lead}</ReactMarkdown>}
+        </div>
+        <ReactMarkdown>{rest}</ReactMarkdown>
+      </div>
+      <Saves lines={savesOf(msg)} />
+    </div>
+  )
+}
+
+/**
+ * A reply's opening markdown heading, split off so the sparkle can share its
+ * line. Anchored at the very start of the message — a heading three paragraphs
+ * down is a section of the answer, not its title, and pulling the glyph down
+ * there would leave the reply beginning anonymously.
+ */
+function splitLead(content) {
+  const text = String(content ?? '')
+  const match = text.match(/^#{1,6}[ \t]+[^\n]+/)
+  if (!match) return { lead: '', rest: text }
+  return { lead: match[0], rest: text.slice(match[0].length) }
+}
+
+/** Three dots, replacing "Thinking…". A turn can take most of a minute. */
+function Typing() {
+  return (
+    <div className="typing" role="status" aria-label="The agent is replying">
+      <span className="typing-dot" />
+      <span className="typing-dot" />
+      <span className="typing-dot" />
+    </div>
   )
 }
 
@@ -98,15 +186,28 @@ function savesOf(msg) {
   return Array.isArray(json) ? [] : (json?.saves ?? [])
 }
 
+// The design draws one strip. The executors write one line per tool call, and
+// which line a call produced is the whole point of them — "Saved Café Bazar for
+// review" and "Café Bazar — already saved" are different facts — so N lines get
+// N strips rather than being joined into a sentence that claims less than it
+// knows. One save, which is the common case, looks exactly like the design.
 function Saves({ lines }) {
   if (!lines.length) return null
   return (
     <div className="msg-saves">
-      {lines.map((line, i) => (
-        <span key={i} className="meta">
-          {line}
-        </span>
-      ))}
+      {lines.map((line, i) => {
+        // A failure must not wear the green "written" strip. App.jsx's tool-error
+        // branch is the one thing in here that isn't a save, and it says so. The
+        // tick is dropped rather than swapped: the icon set has no warning glyph,
+        // and inventing one would be inventing design.
+        const failed = /^Couldn't/.test(line)
+        return (
+          <span key={i} className={`write-strip${failed ? ' write-strip--failed' : ''}`}>
+            {!failed && <Icon name="check" size={15} />}
+            {line}
+          </span>
+        )
+      })}
     </div>
   )
 }

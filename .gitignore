@@ -17,6 +17,10 @@ dist-ssr
 .env.*
 !.env.example
 
+# Claude Code's local workspace: settings.local.json is personal, and
+# launch.json holds an absolute path to this checkout.
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

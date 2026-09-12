@@ -13,6 +13,7 @@ const LOCALE = 'en-GB'
 
 const dayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })
 const shortFmt = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' })
+const weekdayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'short' })
 
 /** 'YYYY-MM-DD' → Date at LOCAL midnight. */
 export function parseISODate(iso) {
@@ -108,6 +109,27 @@ export function relativeDay(timestamp) {
 }
 
 /**
+ * A timestamp -> 'today' | 'Tue' | '19 Aug'. The chat list's date stamp.
+ *
+ * Deliberately not relativeDay(): '6 days ago' is longer than the weekday it
+ * describes and sits badly in a three-part meta row, and the list is already
+ * grouped into This week / Earlier, so the stamp only has to place a chat
+ * *within* its group. A weekday does that for the recent ones and a date for
+ * the rest, which is what the design draws.
+ */
+export function shortRelativeDay(timestamp) {
+  if (!timestamp) return ''
+  const at = new Date(timestamp)
+  if (Number.isNaN(at.getTime())) return ''
+  const days = daysBetween(toISODate(at), todayISO())
+  if (days === 0) return 'today'
+  // Past six days only: beyond that a weekday is ambiguous — 'Tue' could be
+  // this week's or last week's.
+  if (days > 0 && days < 7) return weekdayFmt.format(at)
+  return shortFmt.format(at)
+}
+
+/**
  * activities.time is untyped text — the tool asks for HH:MM but the model may
  * write '9am' or a range. Pass through anything already well-formed, otherwise
  * render what's there rather than mangling it.
@@ -128,7 +150,8 @@ export function tripPhase(trip, today = todayISO()) {
 }
 
 /**
- * The header subtitle. Note "Day N of M" counts days inclusively: Sep 15–26 is
+ * The header's mono label on Agenda / Saved / Pack, and in legacy mode on Chat.
+ * Note "Day N of M" counts days inclusively: Sep 15–26 is
  * 11 nights but 12 days, so the design's literal "Day 4 of 11" would read
  * "Day 12 of 11" on the last morning.
  */

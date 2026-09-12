@@ -3,6 +3,7 @@
 // is explicit that nothing is ever posted without appearing here first.
 
 import { useState } from 'react'
+import Icon from './Icon'
 import Section from './Section'
 import { formatDay } from '../lib/dates'
 
@@ -13,8 +14,12 @@ const FILTERS = [
   { id: 'day-trip', label: 'Day trip' },
 ]
 
-// The design draws pills for three categories; the schema allows five.
+// The design draws pills for three categories; the schema allows five. Each of
+// the three has a glyph beside the word — the accommodation and other rows fall
+// back to the neutral pill and no icon, rather than borrowing one that would
+// quietly mislabel them.
 const PILL = { food: 'food', activity: 'activity', 'day-trip': 'day-trip' }
+const PILL_ICON = { food: 'fork', activity: 'peak', 'day-trip': 'car' }
 const pillClass = category => `pill pill--${PILL[category] ?? 'other'}`
 
 export default function Saved({ recommendations, loading, error, onRetry, onKeep, onReject }) {
@@ -120,7 +125,10 @@ function RecCard({ rec, pending = false, onKeep, onReject }) {
     <div className={`card card--tight${pending ? ' card--sand' : ''}`}>
       <div className="rec-head">
         <span className="rec-name">{rec.name}</span>
-        <span className={pillClass(rec.category)}>{rec.category.replace('-', ' ')}</span>
+        <span className={pillClass(rec.category)}>
+          {PILL_ICON[rec.category] && <Icon name={PILL_ICON[rec.category]} size={13} />}
+          {rec.category.replace('-', ' ')}
+        </span>
       </div>
 
       {(rec.notes || rec.location) && (
@@ -154,13 +162,16 @@ function RecCard({ rec, pending = false, onKeep, onReject }) {
       ) : (
         <div className="actions actions--spread">
           <span className="meta">{provenance}</span>
+          {/* A glyph, not the word: a column of accent-orange "Remove"s outshouts
+              the place names they belong to. The label moves to aria-label. */}
           <button
             type="button"
-            className="btn-link"
+            className="rec-remove"
             disabled={busy}
+            aria-label={`Remove ${rec.name}`}
             onClick={() => run(() => onReject(rec.id))}
           >
-            Remove
+            <Icon name="trash" size={19} />
           </button>
         </div>
       )}

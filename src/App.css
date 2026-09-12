@@ -3,47 +3,197 @@
  * Every value here comes from design-spec.md / the Claude Design export. Where a
  * comment says "design:", that's a literal from the handoff sheet. */
 
+/* ── Icons ───────────────────────────────────────────────────────────────── */
+
+/* Every icon in the app, from Icon.jsx. `block` because an inline SVG sits on
+ * the text baseline and leaves a few pixels of descender gap under it, which
+ * shows up as a mis-centred glyph inside every round control. `flex: none` so it
+ * can't be squeezed by a long label beside it. */
+.icon {
+  display: block;
+  flex: none;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 .app-header {
-  padding: var(--pad-top) 20px 12px;
+  padding: var(--pad-top) 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
-.app-titlebar {
+/* The header's first row, in all four of its forms. Fixed height comes from the
+ * 52px controls inside it, so the header doesn't resize as you move between
+ * tabs and the tab bar below never shifts under your thumb. */
+.header-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
   min-width: 0;
 }
 
-.app-title-row {
+
+.header-title-text {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
 
-.title {
-  font-family: var(--serif);
-  font-size: 24px;
-  line-height: 1;
-}
-
-.subtitle {
-  display: block;
+.header-label {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--label);
 }
 
-/* Refresh control. Text, not an icon — the design has no icons anywhere. */
+.title {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+/* The Chats list's own header: a screen name rather than a tab name, so it takes
+ * the accent for its glyph the way the design's section headers do. */
+.header-screen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  color: var(--accent);
+}
+
+.header-screen-name {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.header-count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--label);
+  flex: none;
+}
+
+/* ── Icon buttons ────────────────────────────────────────────────────────── */
+
+/* 44px, the floor for anything tappable. The accent variant is 52px because it
+ * stands beside the switcher pill and has to match its height exactly — an
+ * eight-pixel step between two controls on one row reads as a mistake. */
+.icon-btn,
+.icon-btn-accent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-ctl);
+  flex: none;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--field);
+  background: var(--card);
+  color: var(--prose);
+}
+
+.icon-btn-accent {
+  width: 52px;
+  height: 52px;
+  background: var(--accent);
+  color: var(--card);
+}
+
+@media (hover: hover) {
+  .icon-btn:hover {
+    background: var(--card-lift);
+    border-color: var(--field-strong);
+  }
+
+  .icon-btn-accent:hover {
+    background: var(--accent-deep);
+  }
+}
+
+/* ── The session switcher ────────────────────────────────────────────────── */
+
+/* Replaces the Chat tab's subtitle, which was tappable and didn't look it. */
+.switcher {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--field);
+  border-radius: var(--r-ctl);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+}
+
+@media (hover: hover) {
+  .switcher:hover {
+    background: var(--card-lift);
+    border-color: var(--field-strong);
+  }
+}
+
+.switcher-tile {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--track);
+  color: var(--accent);
+}
+
+.switcher-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* "Chat 3 of 7". This line is the whole change: it's what makes the pill read as
+ * a position in a list you can move through, rather than as the page's title.
+ * Don't shrink it and don't drop it. */
+.switcher-position {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.switcher-title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.switcher-caret {
+  flex: none;
+  color: var(--label);
+}
+
+/* Refresh control. */
 .refresh {
   font-family: var(--mono);
   font-size: 11px;
@@ -60,11 +210,19 @@
   cursor: default;
 }
 
-.header-actions {
+.header-actions,
+.header-chrome {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 14px;
   flex: none;
+}
+
+/* Legacy mode only — see the comment in App.jsx. Right-aligned and marginless so
+   it reads as chrome sitting above the screen rather than as part of it. */
+.header-chrome {
+  justify-content: flex-end;
+  margin-bottom: -6px;
 }
 
 /* Same mono-caps treatment as Refresh, but muted: design-spec.md reserves the
@@ -86,18 +244,29 @@
   display: flex;
   gap: 4px;
   background: var(--track);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-card);
   padding: 4px;
 }
 
+/* An icon over its label. The labels stay: "Saved" and "Pack" are a bookmark and
+ * a bag, which are near-synonyms as pictures at 20px. */
 .tab {
   flex: 1;
-  min-height: 44px;
-  border-radius: var(--r-pill);
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: var(--r-ctl);
   background: transparent;
   color: var(--muted);
-  font-size: 15px;
   font-weight: 500;
+}
+
+.tab-label {
+  font-size: 11px;
+  letter-spacing: 0.01em;
 }
 
 .tab--on {
@@ -112,7 +281,7 @@
 .scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 20px 44px;
+  padding: 20px 16px 44px;
   display: flex;
   flex-direction: column;
   gap: 30px;
@@ -195,12 +364,18 @@
   cursor: default;
 }
 
+/* The icon rides alongside the word rather than replacing it: three categories
+ * is few enough that the word is short, and "day trip" as a car is a guess the
+ * reader shouldn't have to make. */
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 4px 8px;
+  padding: 4px 9px;
   border-radius: var(--r-pill);
   flex: none;
 }
@@ -239,10 +414,21 @@
   color: var(--label);
 }
 
+/* For the handful of places the design says a dot and a screen reader needs a
+ * word. Not display:none, which takes it out of the accessibility tree too. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ── Errors and connectivity ─────────────────────────────────────────────── */
 
 .banner {
-  padding: 10px 20px;
+  padding: 10px 16px;
   font-size: 14px;
   line-height: 1.4;
   color: var(--label);
@@ -275,7 +461,7 @@
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 20px 8px;
+  padding: 20px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -299,14 +485,34 @@
   align-items: flex-end;
 }
 
-/* Design: "sender is the tint, not an avatar" */
+/* Design: "sender is the tint, not an avatar". The dot repeats the bubble's tint
+ * up beside the name, so who said it is legible from the tag alone — the tint on
+ * its own is easy to miss in a run of messages from one person. */
 .sender-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--label);
   padding: 0 4px;
+}
+
+.sender-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: currentcolor;
+}
+
+.msg--bar .sender-tag {
+  color: var(--accent);
+}
+
+.msg--ori .sender-tag {
+  color: var(--green);
 }
 
 .msg--user .msg-body {
@@ -336,23 +542,37 @@
   font-style: italic;
 }
 
-/* A receipt for what the agent wrote to the trip while it was answering — not
- * content, so it takes the same quiet mono label the Saved cards use for
- * provenance rather than any weight of its own. The rule ties it to the reply
- * above it; without one it reads as a fourth paragraph. */
+/* A receipt for what the agent wrote to the trip while it was answering. It used
+ * to be a quiet mono column, which read as a fourth paragraph of the reply; the
+ * green strip says "this happened" in a tone nothing else in the app uses. */
 .msg-saves {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-  padding-left: 10px;
-  border-left: 1px solid var(--line);
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
 }
 
-/* .meta sets no line-height because it's a single line everywhere else. A stay
- * with dates wraps at 375px, and without this the two halves touch. */
-.msg-saves .meta {
-  line-height: 1.45;
+.write-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: var(--tint-ori);
+  color: var(--green-ink);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* A tool that threw. Same strip, the other tint — a failure wearing the green
+ * "written" colour is the one thing this receipt exists to prevent. */
+.write-strip--failed {
+  background: var(--tint-bar);
+  color: var(--accent);
 }
 
 /* Markdown, as rendered by ReactMarkdown. index.css used to style these
@@ -441,56 +661,330 @@
   text-align: left;
 }
 
+/* The sparkle and the reply's opening heading, on one line. When the reply opens
+ * with prose instead the glyph stands alone above it — see splitLead in Chat.jsx.
+ * Inside .msg-body so the heading keeps the markdown heading styling above. */
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.agent-head--bare {
+  /* Tighter than the 10px between markdown blocks: a lone glyph is a mark on the
+     reply, not a paragraph of its own. */
+  margin-bottom: -4px;
+}
+
+/* Three dots, replacing "Thinking…". A turn can take most of a minute, and a
+ * word that doesn't move stops reading as progress after about five seconds. */
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--dot);
+  animation: typing-dot 1.2s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+  }
+
+  30% {
+    opacity: 1;
+  }
+}
+
+/* Respects the system setting — a looping animation is exactly what that setting
+ * is for. The dots stay, at their mid opacity, so the wait is still visible. */
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 .chat-empty {
-  margin-top: 12%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 4px;
+}
+
+.chat-empty-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.chat-empty-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.chat-empty-body {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.chat-starters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+/* Sends on tap rather than filling the input — a starter you still have to press
+ * Send on is a slower way of typing. */
+.chat-starter {
+  min-height: 48px;
+  padding: 0 16px;
+  text-align: left;
+  border: 1px solid var(--field);
+  border-radius: var(--r-ctl);
+  background: var(--card);
+  color: var(--prose);
+  font-size: 15px;
+}
+
+.chat-starter[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .chat-starter:hover:not([disabled]) {
+    background: var(--card-lift);
+    border-color: var(--field-strong);
+  }
+}
+
+/* ── The Chats list ──────────────────────────────────────────────────────── */
+
+/* Its own scroller rather than .scroll: the groups sit closer together than the
+ * Agenda's sections do, and the list has no cards wide enough to need the gap. */
+.chats-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px var(--pad-bottom);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* New chat, primary and first. It's the most likely reason to be on this screen,
+ * and it's the one accent action design-spec.md allows per screen — which is why
+ * the session cards below are tinted rather than accented. */
+.chats-new {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 0 16px;
+  border-radius: var(--r-card);
+  background: var(--accent);
+  color: var(--card);
+  text-align: left;
+}
+
+@media (hover: hover) {
+  .chats-new:hover {
+    background: var(--accent-deep);
+  }
+}
+
+.chats-new-tile {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  /* On the accent, not on paper — a token tint would be invisible here. */
+  background: rgb(255 255 255 / 18%);
+}
+
+.chats-new-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.chats-new-caret {
+  flex: none;
+  opacity: 0.7;
+}
+
+.chats-group {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.chat-empty-title {
-  font-family: var(--serif);
-  font-size: 21px;
-  line-height: 1.25;
-}
-
-.chat-empty-body {
-  font-size: 17px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-/* ── Chat sessions ───────────────────────────────────────────────────────── */
-
-/* The Chat tab's subtitle, doubling as the session switcher. It carries the
- * .subtitle class too, so the type is unchanged; this only makes it a 44px tap
- * target, which design-spec.md requires of anything tappable. That does grow the
- * header on the Chat tab — the alternative was an 11px hit area. */
-.session-switch {
+/* A card that is also its own tap target — the whole row, not a link inside it. */
+.session-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 4px;
-  margin: 0 -4px;
-  background: transparent;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--card);
+  color: var(--ink);
   text-align: left;
 }
 
-/* The title, which is the only part that can be long enough to wrap. Selected
- * rather than classed because it's the button's own first child, not a thing
- * anywhere else in the app has. */
-.session-switch > span:first-child {
+/* Sand is the design's "current / pending" tint; it marks the session you're in
+ * without spending the accent, which this screen has already given to New chat.
+ * Transparent rather than no border, so the box doesn't shrink by 2px. */
+.session-card--on {
+  background: var(--sand);
+  border-color: transparent;
+}
+
+@media (hover: hover) {
+  .session-card:hover {
+    border-color: var(--field-strong);
+  }
+
+  .session-card--on:hover {
+    border-color: transparent;
+  }
+}
+
+/* The topic glyph. Inverted on the current card — white tile, accent glyph —
+ * because the default sand tile would disappear into the sand card. */
+.session-tile {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--sand);
+  color: var(--label);
+}
+
+.session-card--on .session-tile {
+  background: var(--card);
+  color: var(--accent);
+}
+
+.session-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.session-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.session-title {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* A dot rather than the word "Current": the card is already tinted, and a second
+ * label crowds out the title it's meant to be qualifying. */
+.session-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+/* Three icon pairs — when, how many, who — where the old list had a run of
+ * prose: "3 days ago · 22 messages · Current". */
+.session-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--label);
+}
+
+.session-meta-pair {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
 }
 
-/* A card that is also its own tap target — the whole row, not a link inside it.
- * Resets what <button> imposes; the card treatment is Saved's, unchanged. */
-.session-card {
-  width: 100%;
-  text-align: left;
+/* Who opened the thread, in their own colour. Same two colours as the message
+ * tints, so the attribution here and in the transcript are one system. */
+.session-starter {
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.session-starter--ori {
+  color: var(--green);
+}
+
+.session-starter-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: currentcolor;
+}
+
+.session-caret {
+  flex: none;
+  color: var(--faint);
+}
+
+/* Refresh and Sign out. They live down here because the design gave the Chat
+ * header's first row entirely to the switcher and the + button — see the comment
+ * in App.jsx. The rule separates them from the list: they act on the app, not on
+ * any chat in it. */
+.chats-chrome {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 
 /* ── Composer ────────────────────────────────────────────────────────────── */
@@ -506,8 +1000,8 @@
 
 .composer-row {
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  gap: 10px;
+  align-items: center;
 }
 
 .composer input {
@@ -529,11 +1023,18 @@
   width: 52px;
   height: 52px;
   flex: none;
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--card);
-  font-size: 20px;
-  line-height: 1;
+}
+
+@media (hover: hover) {
+  .send:hover:not([disabled]) {
+    background: var(--accent-deep);
+  }
 }
 
 .send[disabled] {
@@ -688,7 +1189,7 @@
 .filters {
   display: flex;
   gap: 8px;
-  padding: 14px 20px 12px;
+  padding: 14px 16px 12px;
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   -webkit-overflow-scrolling: touch;
@@ -747,6 +1248,27 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Remove, on a kept card. A word here competed with the place name beside it on
+   every card in the list; the glyph reads as furniture, which is what it is. The
+   box is 44px so the tap target survives the shrink — see the aria-label. */
+.rec-remove {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  /* Pulled into the card's padding so the glyph sits flush with the text edge
+     rather than 12px inside it. */
+  margin: -10px -8px -10px 0;
+}
+
+.rec-remove[disabled] {
+  color: var(--faint);
+  cursor: default;
 }
 
 /* ── Auth gates ──────────────────────────────────────────────────────────── */
@@ -849,6 +1371,9 @@
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 4px 18px;
+  /* A ticked row fills to the card's edges (below), which would otherwise square
+     off the corners of the first and last one. */
+  overflow: hidden;
 }
 
 .pack-row {
@@ -864,6 +1389,17 @@
   border-top: none;
 }
 
+/* A ticked row recedes: sand fill, no rule, the name struck through. The negative
+   margin bleeds the fill to the card's edges — without it the tint stops 18px
+   short and reads as a highlight on the text rather than a done row. */
+.pack-row--done {
+  margin: 0 -18px;
+  padding-left: 18px;
+  padding-right: 18px;
+  background: var(--sand);
+  border-top-color: transparent;
+}
+
 .pack-check {
   display: flex;
   align-items: center;
@@ -872,41 +1408,48 @@
   cursor: pointer;
 }
 
-/* The only checkbox in the app — the design has no icons, so the tick is drawn
-   with a rotated border rather than a glyph or an SVG. */
+/* The only checkbox in the app. The input itself is invisible but present — it
+   keeps the native keyboard behaviour and the accessibility role, and .pack-box
+   beside it is what's actually drawn. */
 .pack-check input {
-  appearance: none;
-  -webkit-appearance: none;
-  position: relative;
-  width: 20px;
-  height: 20px;
-  flex: none;
-  border: 1.5px solid var(--field);
-  /* Not --r-sm: 12px on a 20px box is a circle, and a circle reads as a radio
-     button. A squircle is the only shape that says "tick as many as you like". */
-  border-radius: 7px;
-  background: var(--card);
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+  margin: 0;
 }
 
-.pack-check input:checked {
+.pack-box {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--field-strong);
+  /* Not --r-sm: 12px on a 26px box is nearly a circle, and a circle reads as a
+     radio button. A squircle says "tick as many as you like". */
+  border-radius: var(--r-box);
+  background: var(--card);
+  /* The tick is always rendered and only becomes visible when checked, so
+     nothing about the box's size changes as you tap it. */
+  color: transparent;
+}
+
+.pack-check input:checked + .pack-box {
   background: var(--green);
   border-color: var(--green);
+  color: var(--card);
 }
 
-.pack-check input:checked::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 5px;
-  height: 10px;
-  border: solid var(--paper);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.pack-check input:disabled {
+.pack-check input:disabled + .pack-box {
   opacity: 0.5;
+}
+
+/* The ring the hidden input can't draw for itself. */
+.pack-check input:focus-visible + .pack-box {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .pack-name {
@@ -916,7 +1459,7 @@
 }
 
 .pack-row--done .pack-name {
-  color: var(--muted);
+  color: var(--done-ink);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
@@ -944,10 +1487,12 @@
   }
 }
 
-/* Second grid row, under the name — never beside it, or long items reflow. */
+/* Second grid row, under the name — never beside it, or long items reflow. The
+   indent clears the 26px box plus its 12px gap, so the note lines up with the
+   item name above it. */
 .pack-note {
   grid-column: 1 / -1;
-  padding: 0 0 8px 32px;
+  padding: 0 0 8px 38px;
 }
 
 .pack-add {
