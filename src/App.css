@@ -609,6 +609,19 @@
   color: var(--muted);
 }
 
+/* The only anchor in the app. Accent because design-spec.md reserves it for
+ * times, links and one primary action per screen, and 44px because it's a tap
+ * target on a card, not a word in a sentence. */
+.card-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
 .flight-row {
   display: flex;
   justify-content: space-between;

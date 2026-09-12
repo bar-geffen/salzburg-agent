@@ -410,6 +410,7 @@ function TripApp({ sender }) {
       trip.refreshTable('packing')
       trip.refreshTable('accommodation')
       trip.refreshTable('flights')
+      trip.refreshTable('carRental')
       trip.refreshTable('trip')
     } catch (err) {
       console.error('Failed to send message:', err)
@@ -519,6 +520,7 @@ function TripApp({ sender }) {
           trip={trip.trip}
           activities={trip.activities}
           accommodation={trip.accommodation}
+          carRental={trip.carRental}
           flights={trip.flights}
           journal={trip.journal}
           today={today}

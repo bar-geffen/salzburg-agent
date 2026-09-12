@@ -142,7 +142,7 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   deltas for a database that already ran an earlier version. If you change the
   schema, update `supabase-schema.sql` *and* add a numbered migration *and* say so
   in your summary, because someone has to paste it in.
-- **RLS is the access gate, and it is the only one.** All ten tables carry one
+- **RLS is the access gate, and it is the only one.** All eleven tables carry one
   policy that calls `public.is_trip_member()`, which checks the email claim in the
   Supabase Auth JWT against two addresses. The anon key still ships in the client
   bundle and is now worth nothing on its own — an unauthenticated request reads zero
@@ -154,19 +154,37 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   would mean 27 taps to confirm a list they wrote. The migration's six cut items
   are seeded as `rejected` — the status that already means "never re-propose
   this". Neither is a precedent for a *write path*; see the next rule.
+- **`supabase-migration-006.sql` is the booked itinerary, pasted in by hand** —
+  and it should be the last one of its kind. Everything in it has a tool now, so
+  a change to the trip is a sentence in chat, not a migration: bookings go to
+  `save_accommodation` / `save_flight`, plans and their changes to
+  `add_activity` / `update_activity` / `cancel_activity`, standing facts to
+  `note_trip_fact` / `remove_trip_fact`. Reach for SQL again only for a schema
+  change or a bulk paste, never to correct a fact.
+  The two booked apartments as `accommodation` rows, and the car rental — which
+  has no table and doesn't want one — as the standing fact in `trip.notes`, the
+  same field `note_trip_fact` writes. The Salzburg city stay is deliberately
+  *not* a row: an empty `researching` placeholder reads to the agent as progress.
+  Booking it later is a `save_accommodation` call, not migration 007. The car's
+  Austria-only clause is also research input, so it's reflected in
+  `src/data/region-guide.js` — the clause there, the paperwork here.
 - **Status columns gate what the agent sees.** `recommendations.status` and
   `journal.status` exist because the design requires review before anything counts
   as saved. `build-system-prompt.js` feeds the agent only `kept` rows (plus pending
   recommendations under a separate "Awaiting Review" heading). If you add a write
   path, respect this — don't insert straight to `kept`.
-- **Five tools write live, and deliberately so.** The review gate exists for
-  things the agent *proposes*; these five record something the traveller has
-  already settled, and making them tap Keep on their own booking is bureaucracy:
-  - `add_activity` and `add_packing_item` — `activities` and `packing_items` have
-    no `status` because neither has a meaningful pending state (a booked time is
-    booked; an unticked checkbox is already its own review).
-  - `save_accommodation`, `save_flight` and `note_trip_fact` — the `trip`,
-    `flights` and `accommodation` tables had **no write path at all** before these,
+- **Nine tools write live, and deliberately so.** The review gate exists for
+  things the agent *proposes*; these nine record something the travellers have
+  already decided, and making them tap Keep on their own booking is bureaucracy:
+  - `add_activity` and `add_packing_item` — `packing_items` has no `status`
+    because an unticked checkbox is already its own review, and `activities.status`
+    (`planned` / `booked` / `cancelled`, migration 007) is **not** a review gate:
+    every row shows the moment it's written, and the column says what the
+    travellers committed to, not whether a human has seen it. `planned` is how a
+    decided-but-unbooked day gets recorded — the thing the agent otherwise had to
+    either overstate as booked or lose.
+  - `save_accommodation`, `save_flight`, `save_car_rental` and `note_trip_fact` —
+    the `trip`, `flights`, `accommodation` and `car_rental` tables had **no write path at all** before these,
     from the app or from a tool. The agent filed a booked apartment as an
     `add_activity` called "Check in — Haus Bergblick" and then, on the next
     message, told the travellers that leg was still unbooked, because
@@ -177,13 +195,42 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
     hedge; a place they're merely considering is still a `save_recommendation`.
 
   Each is visibly attributed — `packing_items.added_by` marks agent-written rows,
-  and every one of the five prints a `userLine` in the chat — so nothing the agent
+  and every one of the nine prints a `userLine` in the chat — so nothing the agent
   writes appears silently.
-- **`save_accommodation` and `save_flight` replace rather than append.** One stay
-  per `check_in`, one flight per `direction`. That's what makes a changed booking
+- **Three of the tools exist to change what an earlier one wrote.**
+  `update_activity`, `cancel_activity` and `remove_trip_fact`. Without them the
+  record only accretes, and because `buildSystemPrompt()` rebuilds from the tables
+  every turn, a stale row isn't clutter — it's the agent telling them next week to
+  book something they booked today. Two consequences worth keeping:
+  - **Activities are addressed by a short id, printed in the prompt.**
+    `build-system-prompt.js` prefixes every agenda line with `[#` + the first six
+    characters of the uuid, and `findActivity()` in `tools.js` resolves that
+    prefix (falling back to an exact name match, and reporting ambiguity rather
+    than picking). Change the prefix length in one place and you must change it in
+    the other, or the agent will hand back ids nothing resolves.
+  - **`cancel_activity` marks, it doesn't delete.** The row leaves the Agenda but
+    stays in the agent's context under a "Cancelled" heading, for the same reason
+    `recommendations.status` has a `rejected` value: the next day plan would
+    otherwise re-propose the outing they called off this morning.
+  - `add_activity` updates a row with the same name on the same date instead of
+    inserting a second one, because a plan firms up over several messages and the
+    model keeps reaching for `add_activity` while it does.
+- **A card shows what you need at the door; the notes are for the agent.** The
+  Stay card is dates, check-in window and a maps link; the Car card is two times,
+  two places and the reference. `accommodation.notes` and `car_rental.notes` still
+  hold the cancellation terms, the host's phone number, the excess and the fuel
+  policy — `build-system-prompt.js` feeds all of it to the agent, and the UI shows
+  none of it. That split is the design, not an oversight: the thing you need
+  standing outside a door with a toddler on one arm is not the thing you need when
+  deciding whether to drive to Germany. The consequence is a prompt rule — when it
+  matters on the day, the agent has to *say* it, because no card will.
+- **`save_accommodation`, `save_flight` and `save_car_rental` replace rather than
+  append.** One stay per `check_in`, one flight per `direction`, one rental per
+  `pickup_date`. That's what makes a changed booking
   a change instead of a second bed on the same night, and it's why `save_flight`
   is documented as taking every field even the unchanged ones: a row carrying the
-  new time and the old flight number is a wrong answer that looks right.
+  new time and the old flight number is a wrong answer that looks right. The car
+  works the same way.
 - **The packing list's prose lives in `src/lib/packing.js`, its items in Supabase.**
   `PACKING_STRATEGY` and the category labels are read by both `Packing.jsx` and
   `build-system-prompt.js`; the 160 items are seeded once by

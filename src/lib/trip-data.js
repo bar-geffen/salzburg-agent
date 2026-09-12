@@ -90,10 +90,26 @@ export async function fetchPacking() {
   return data
 }
 
+/**
+ * Tolerates the table not existing, the same way fetchPacking does: this code
+ * ships before someone pastes supabase-migration-008.sql, and fetchTripData runs
+ * every read in one Promise.all, so a throw here would take the whole Agenda
+ * down over a car that hasn't been migrated yet.
+ */
+export async function fetchCarRental() {
+  const { data, error } = await supabase.from('car_rental').select('*').order('pickup_date')
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') return []
+    throw new Error(`Couldn't load the car: ${error.message}`)
+  }
+  return data
+}
+
 export const FETCHERS = {
   trip: fetchTrip,
   flights: fetchFlights,
   accommodation: fetchAccommodation,
+  carRental: fetchCarRental,
   activities: fetchActivities,
   recommendations: fetchRecommendations,
   journal: fetchJournal,
@@ -101,17 +117,18 @@ export const FETCHERS = {
 }
 
 export async function fetchTripData() {
-  const [trip, flights, accommodation, activities, recommendations, journal, packing] =
+  const [trip, flights, accommodation, carRental, activities, recommendations, journal, packing] =
     await Promise.all([
       fetchTrip(),
       fetchFlights(),
       fetchAccommodation(),
+      fetchCarRental(),
       fetchActivities(),
       fetchRecommendations(),
       fetchJournal(),
       fetchPacking(),
     ])
-  return { trip, flights, accommodation, activities, recommendations, journal, packing }
+  return { trip, flights, accommodation, carRental, activities, recommendations, journal, packing }
 }
 
 // ── mutations (user-initiated only) ────────────────────────────────────────

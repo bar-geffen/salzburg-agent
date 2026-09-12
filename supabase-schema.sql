@@ -9,9 +9,13 @@
 --   003  Google auth: is_trip_member() and the nine policy swaps
 --   004  chat_sessions, messages.session_id, and the backfill of old messages
 --   005  the region guide's places, seeded as recommendations rows
+--   006  the booked itinerary: accommodation rows and the car in trip.notes
+--   007  activities.status - planned / booked / cancelled
+--   008  car_rental, and check-in times on accommodation
 --
--- On a fresh database: run this file, then 002 for the packing seed and 005 for
--- the region guide's places. 004's backfill is a migration-only concern: a
+-- On a fresh database: run this file, then 002 for the packing seed, 005 for
+-- the region guide's places, and 006 for the bookings. 006 overwrites the trip
+-- note seeded at the bottom of this file, which predates the three-leg shape. 004's backfill is a migration-only concern: a
 -- fresh database has no messages to orphan, and session_id is not null here
 -- from the start.
 
@@ -43,12 +47,21 @@ create table flights (
 );
 
 -- Accommodation
+--
+-- check_in_time is text, not time: "15:00-20:00" is a window, and the window is
+-- the fact. These three columns exist because the Agenda card needs exactly what
+-- you need standing outside a door -- dates, the time you can get in, and
+-- somewhere to navigate to -- and burying that in `notes` meant the card could
+-- only show all of the notes or none of them.
 create table accommodation (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   address text,
   check_in date not null,
   check_out date not null,
+  check_in_time text,
+  check_out_time text,
+  maps_url text, -- optional exact pin; the card falls back to a maps search
   status text not null default 'researching' check (status in ('booked', 'researching', 'wishlist')),
   notes text,
   confirmation_ref text,
@@ -56,7 +69,13 @@ create table accommodation (
   updated_at timestamptz default now()
 );
 
--- Activities (booked/reserved things pinned to dates)
+-- Activities (things pinned to dates, booked or merely intended)
+--
+-- status is NOT a review gate, unlike the one on recommendations and journal.
+-- Every row here shows the moment it is written; the column says what the
+-- travellers have committed to, not whether a human has seen it yet. 'planned'
+-- is an intention with a date on it, 'cancelled' is a dropped plan kept legible
+-- so the agent doesn't re-propose what they just called off.
 create table activities (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -65,6 +84,7 @@ create table activities (
   location text,
   notes text,
   confirmation_ref text,
+  status text not null default 'booked' check (status in ('planned', 'booked', 'cancelled')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -82,6 +102,30 @@ create table recommendations (
   -- Agent-captured suggestions land as 'pending' and need Keep / Not this one
   -- before they count as saved. Only 'kept' rows go into the system prompt.
   status text not null default 'pending' check (status in ('pending', 'kept', 'rejected')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Car rental
+--
+-- Shaped like flights, and for the same reason: a pick-up and a drop-off, each
+-- with a place, a date and a time, plus the reference you quote at the desk.
+-- It lived in trip.notes until migration 008, which put an 11-line rental
+-- contract at the top of the Agenda ahead of where anyone was sleeping.
+create table car_rental (
+  id uuid primary key default gen_random_uuid(),
+  company text not null,
+  vehicle text,
+  pickup_location text not null,
+  pickup_date date not null,
+  pickup_time text,
+  dropoff_location text,
+  dropoff_date date not null,
+  dropoff_time text,
+  driver text,
+  confirmation_ref text,
+  maps_url text,
+  notes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -173,7 +217,7 @@ create index packing_items_category_sort_idx on packing_items (category, sort_or
 -- The anon key ships in the client bundle, so without RLS every table is
 -- world-readable and world-writable to anyone with the URL. Access is gated on
 -- the email claim in the Supabase Auth JWT, checked by one function that all
--- ten policies call — an address changes in exactly one place.
+-- eleven policies call — an address changes in exactly one place.
 --
 -- Checked on the email rather than auth.uid() so it survives a user being
 -- deleted and signing in again with a new user id. coalesce() keeps it false
@@ -202,6 +246,7 @@ alter table learnings       enable row level security;
 alter table messages        enable row level security;
 alter table packing_items   enable row level security;
 alter table chat_sessions   enable row level security;
+alter table car_rental      enable row level security;
 
 -- `using` governs reads and which rows an update may touch; `with check`
 -- governs what a write may leave behind. Both are required — a policy with only
@@ -216,6 +261,7 @@ create policy "trip members" on learnings       for all using (public.is_trip_me
 create policy "trip members" on messages        for all using (public.is_trip_member()) with check (public.is_trip_member());
 create policy "trip members" on packing_items   for all using (public.is_trip_member()) with check (public.is_trip_member());
 create policy "trip members" on chat_sessions   for all using (public.is_trip_member()) with check (public.is_trip_member());
+create policy "trip members" on car_rental      for all using (public.is_trip_member()) with check (public.is_trip_member());
 
 -- Seeds ----------------------------------------------------------------------
 -- These run in the SQL editor, which is not subject to RLS, so they insert fine

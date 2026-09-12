@@ -1,7 +1,10 @@
 // Standing research for the Salzburg region, loaded into the agent's system
 // prompt on every message. This is reference the agent draws on when advising —
-// it is not the trip record. Nothing here is booked, saved, or agreed; the
-// Supabase sections of the prompt say what's actually decided.
+// it is not the trip record. Its recommendations are nobody's plan yet; the
+// Supabase sections of the prompt say what's actually decided. Where it does
+// mention the booked shape of the trip — the leg dates, the car — that is there
+// to frame the research, and the tables are still the record. Don't copy
+// confirmation numbers, prices or check-in windows in here.
 //
 // Deliberately opinionated: it leads with picks and rationale, and it names what
 // to skip. Don't flatten it into a neutral list of options — the cuts and the
@@ -12,16 +15,46 @@
 // trip's research under one set of assumptions.
 
 export const REGION_GUIDE = `
-Researched for: 2 adults + toddler (~1.4 yrs, walks but often carried),
-Sep 15–26 2026, 11 nights, flying TLV↔SZG on Israir.
-Assumptions it was built on: strict nap 12–3pm with a real sleep space,
-Austria-only routing (no crossing into Germany), nature-first low pace of
-1–2 outings/day, ~€250/night.
+Researched for: 2 adults + toddler (~17 months, walks but often carried),
+Sep 15–26 2026, 11 nights, flying TLV↔SZG on Israir, self-drive throughout.
+Assumptions it was built on: an early-afternoon nap in a real sleep space (the
+profile's 13:00–15:00 is the operative window), Austria-only routing (no
+crossing into Germany), nature-first low pace of 1–2 outings/day, ~€250/night.
 
 ### Trip shape
-- Leg 1 — St. Gilgen / Wolfgangsee (4 nights)
-- Leg 2 — Kaprun / Zell am See area (5 nights)
-- Leg 3 — Salzburg city (2 nights)
+The three legs are settled and the first two are booked. The Accommodation
+section of this prompt is the record of where, on what reference, and with which
+check-in times — read those off there, not from here.
+- Leg 1 — St. Gilgen / Wolfgangsee, 4 nights (Sep 15–19)
+- Leg 2 — Kaprun village, 5 nights (Sep 19–24)
+- Leg 3 — Salzburg city, 2 nights (Sep 24–26)
+
+### The four days that are mostly logistics
+The car is collected at SZG on arrival and returned there before the flight home,
+so every leg change is a drive the family makes itself.
+- Sep 15, arrival — the flight lands mid-afternoon, then the rental desk, then
+  ~55 min to St. Gilgen. Groceries and the lakefront is the whole day. Don't
+  propose a first-day outing.
+- Sep 19, St. Gilgen → Kaprun — ~1.5 hrs via the A10 and Bischofshofen, and the
+  Kaprun check-in is an afternoon window that has to be phoned ahead. One short
+  stop en route is all this day holds.
+- Sep 24, Kaprun → Salzburg — the Kaprun check-out is early morning, so they are
+  on the road with the whole day still ahead of them and a city check-in hours
+  away. Something on the way in (the Zell am See lakefront is on the route;
+  Krimml is the wrong direction) beats arriving at 10am with nothing to do.
+- Sep 26, departure — a midday flight with the car to return and refuel first.
+  Breakfast and the road, nothing else.
+
+### What the rental contract fixes
+- Austria-only is contractual now, not just a preference: crossing into Germany
+  needs written confirmation from the rental company. That keeps Berchtesgaden
+  and Königssee cut, and it also rules out the "kleines deutsches Eck" shortcut
+  between Salzburg and the Pinzgau — route through Austria on the A10 instead.
+- No GPS in the booking (it's a €170 add-on), so assume phone navigation, and
+  mention offline maps for any drive that loses signal — the Grossglockner road
+  and the upper Pinzgau valleys especially.
+- Fuel is full-to-full: the last morning needs a fill-up near the airport in it.
+- One named driver (Ori), so "swap driving" is not an option on a long day out.
 
 ### Accommodation principles
 - Hard filter: a physically separate, enclosed, dark bedroom — an apartment or a
@@ -94,6 +127,14 @@ Hikes:
 
 ### Leg 3 — Salzburg city
 
+Where they sleep here is the one leg that was still open when this was written —
+check the Accommodation section before assuming either way. Rupertikirtag, the
+city's folk festival, runs Sep 23–27 across the Altstadt squares, which is the
+argument for staying just outside the old town (Nonntal, Riedenburg, Itzling —
+all a walk or a short bus in) rather than on it, and for doing the Altstadt early
+in the day. As an outing it's mixed: fairground rides and food stalls, but
+evening crowds and noise that run well past his bedtime.
+
 Sights:
 - Mirabell Gardens — free, stroller-perfect, iconic. 30 min.
 - Hohensalzburg Fortress — funicular up, walk the ramparts, come down. Skip the
@@ -115,7 +156,8 @@ are better spent on the sights above.
 - DomQuartier museums — not toddler-appropriate.
 - Schafbergbahn cog railway (Leg 1) — too long, altitude this age doesn't need.
 - The full Kitzsteinhorn summit (Leg 2) — altitude risk; stop at the Alpincenter.
-- Berchtesgaden / Königssee — Austria-only routing, not even in transit.
+- Berchtesgaden / Königssee — Austria-only routing, not even in transit. The
+  rental contract now makes this a hard no rather than a preference.
 
 ### How to use this guide
 - Lead with a clear pick and the reason for it, not a neutral menu.
