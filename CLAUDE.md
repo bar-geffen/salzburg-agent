@@ -96,6 +96,17 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   thread. The header's switcher pill prints `Chat N of M` against the order
   `fetchSessions()` returned, which is the order `SessionList` renders; if you
   re-sort in one place, the label in the other starts lying.
+- **The composer is a textarea, and Enter means opposite things on the two
+  devices it's used from.** `sendsOnEnter()` in `Chat.jsx` asks
+  `(hover: hover) and (pointer: fine)`: on a keyboard Enter sends and
+  Shift+Enter breaks the line; on a phone Enter breaks the line and the send
+  button sends, because a touch keyboard has no Shift+Enter and a message you
+  can't put bullets in was the bug that prompted this. The field grows its own
+  height from `scrollHeight` up to the `max-height` in `App.css` rather than
+  showing a scrollbar inside a 26px pill. And because a message is markdown,
+  `preserveLineBreaks()` turns a lone newline into markdown's own hard break —
+  without it a two-line message renders as one paragraph, which reads as the
+  newline having been eaten.
 - **Refresh and Sign out live at the foot of the Chats list**, not in the header.
   The design gave the Chat header's first row entirely to the switcher and the
   `+`, and two mono-caps buttons don't fit beside them at 375px. Legacy mode is
