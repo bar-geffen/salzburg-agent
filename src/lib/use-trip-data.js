@@ -23,6 +23,7 @@ const EMPTY = {
   trip: null,
   flights: [],
   accommodation: [],
+  carRental: [],
   activities: [],
   recommendations: [],
   journal: [],

@@ -14,7 +14,6 @@ import {
   formatRange,
   formatTime,
   groupByDate,
-  pickFlights,
   tripPhase,
 } from '../lib/dates'
 
@@ -22,6 +21,7 @@ export default function Agenda({
   trip,
   activities,
   accommodation,
+  carRental,
   flights,
   journal,
   today,
@@ -32,7 +32,9 @@ export default function Agenda({
   onSaveJournal,
 }) {
   const phase = tripPhase(trip, today)
-  const days = groupByDate(activities)
+  // Cancelled rows stay in the table so the agent doesn't re-propose what was
+  // just called off, but a dropped plan on the agenda is worse than no plan.
+  const days = groupByDate(activities?.filter(a => a.status !== 'cancelled') ?? [])
   const todayGroup = days.find(d => d.date === today)
   const upcoming = days.filter(d => d.date > today)
   const past = days.filter(d => d.date < today)
@@ -88,13 +90,16 @@ export default function Agenda({
         </Section>
       )}
 
-      <Section label={phase === 'before' ? 'Planned' : phase === 'during' ? 'Next up' : 'The trip'}>
+      {/* 'Next up' pre-trip as well as during, not 'Planned': rows now carry a
+          'planned' tag of their own, and a booked row under a Planned heading
+          read as though it wasn't. 'Next up' is also what design-spec.md says. */}
+      <Section label={phase === 'after' ? 'The trip' : 'Next up'}>
         {futureDays.length > 0 ? (
           futureDays.map(day => <DayCard key={day.date} date={day.date} items={day.items} />)
         ) : (
           <span className="empty">
-            Nothing booked yet. When something's actually confirmed, tell the agent in chat and
-            it'll pin it here.
+            Nothing here yet. Tell the agent what you're doing on a day — booked or just decided —
+            and it'll pin it here.
           </span>
         )}
       </Section>
@@ -108,6 +113,14 @@ export default function Agenda({
           </span>
         )}
       </Section>
+
+      {carRental?.length > 0 && (
+        <Section label="Car">
+          {carRental.map(car => (
+            <CarCard key={car.id} car={car} today={today} />
+          ))}
+        </Section>
+      )}
 
       {flights?.length > 0 && (
         <Section label="Flights">
@@ -140,11 +153,23 @@ function TripCard({ trip, today }) {
         <span className="row-name">
           {nights} nights in {trip.title?.replace(/\s*\d{4}$/, '') || 'Salzburg'}
         </span>
-        {trip.notes && <span className="stay-detail">{trip.notes}</span>}
+        {/* One line per fact: note_trip_fact writes a line at a time, and a
+            single span would run the car booking into the open items. */}
+        {tripNotes(trip).map(line => (
+          <span className="stay-detail" key={line}>
+            {line}
+          </span>
+        ))}
       </div>
     </Section>
   )
 }
+
+const tripNotes = trip =>
+  (trip.notes ?? '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
 
 function DayCard({ date, items, isToday = false }) {
   return (
@@ -158,7 +183,12 @@ function DayCard({ date, items, isToday = false }) {
           {/* Kept in the layout even when empty so names stay aligned. */}
           <span className="row-time">{formatTime(item.time)}</span>
           <div className="row-text">
-            <span className="row-name">{item.name}</span>
+            <span className="row-name">
+              {item.name}
+              {/* Only 'planned' is tagged. Tagging 'booked' too would put a
+                  label on nearly every row and make neither one mean anything. */}
+              {item.status === 'planned' && <span className="day-tag">planned</span>}
+            </span>
             {(item.location || item.notes) && (
               <span className="row-detail">
                 {[item.location, item.notes].filter(Boolean).join(' · ')}
@@ -171,53 +201,116 @@ function DayCard({ date, items, isToday = false }) {
   )
 }
 
+/* Dates, the time you can get in, and somewhere to navigate to. `notes` is
+   deliberately not here: it carries cancellation terms and host preamble that
+   matter to the agent and never to someone standing outside a door with a
+   toddler on one arm. Ask the agent in chat and it has all of it. */
 function StayCard({ stay, phase }) {
-  const meta =
+  const when =
     phase === 'before'
-      ? `${formatDay(stay.check_in)} – ${formatDay(stay.check_out)} · ${stay.status}`
+      ? formatRange(stay.check_in, stay.check_out)
       : phase === 'during'
         ? `Checked in ${formatDay(stay.check_in)} · out ${formatDay(stay.check_out)}`
         : `Checked out ${formatDay(stay.check_out)}`
 
-  return (
-    <div className="card" style={{ gap: 6 }}>
-      <span className="stay-name">{stay.name}</span>
-      {(stay.address || stay.notes) && (
-        <span className="stay-detail">{[stay.address, stay.notes].filter(Boolean).join(' · ')}</span>
-      )}
-      <span className="meta">{meta}</span>
-    </div>
-  )
-}
-
-function FlightsCard({ flights, today }) {
-  const { headline, footer } = pickFlights(flights, today)
-  if (!headline) return null
-
-  const away = daysBetween(today, headline.date)
-  const when = [
-    formatDay(headline.date),
-    `${headline.departure_time} – ${headline.arrival_time}`,
-    away >= 0 ? formatCountdown(away) : `flown ${formatDay(headline.date)}`,
+  const times = [
+    stay.check_in_time && `in ${stay.check_in_time}`,
+    stay.check_out_time && `out ${stay.check_out_time}`,
   ]
     .filter(Boolean)
     .join(' · ')
 
   return (
-    <div className="card card--sand" style={{ padding: '16px 18px', gap: 6 }}>
+    <div className="card" style={{ gap: 6 }}>
+      <span className="stay-name">{stay.name}</span>
+      {stay.address && <span className="stay-detail">{stay.address}</span>}
+      {/* Status only when it isn't 'booked' — a label that's on every card is
+          a label nobody reads, but 'researching' changes what the card means. */}
+      <span className="meta">
+        {[when, times, stay.status === 'booked' ? null : stay.status].filter(Boolean).join(' · ')}
+      </span>
+      <MapsLink url={stay.maps_url} query={[stay.name, stay.address].filter(Boolean).join(', ')} />
+    </div>
+  )
+}
+
+/* The car is a booking with two times and two places, so it reads like a flight
+   rather than like a stay. Its `notes` stay off the card for the same reason the
+   stay's do — the excess terms and the fuel policy are the agent's problem. */
+function CarCard({ car, today }) {
+  const away = daysBetween(today, car.pickup_date)
+  const leg = (label, date, time, place) =>
+    `${label} ${formatDay(date)}${time ? `, ${time}` : ''}${place ? ` · ${place}` : ''}`
+
+  return (
+    <div className="card" style={{ gap: 6 }}>
       <div className="flight-row">
-        <span className="flight-route">
-          {headline.from_airport} → {headline.to_airport}
-        </span>
-        <span className="flight-no">{headline.flight_number}</span>
+        <span className="flight-route">{car.company}</span>
+        {car.confirmation_ref && <span className="flight-no">{car.confirmation_ref}</span>}
       </div>
-      <span className="flight-when">{when}</span>
-      {footer && (
-        <span className="meta">
-          {footer.direction === 'outbound' ? 'Outbound' : 'Return'} {footer.flight_number} ·{' '}
-          {footer.date < today ? `flown ${formatDay(footer.date)}` : formatDay(footer.date)}
-        </span>
-      )}
+      {car.vehicle && <span className="flight-when">{car.vehicle}</span>}
+      <span className="stay-detail">
+        {leg('Pick-up', car.pickup_date, car.pickup_time, car.pickup_location)}
+      </span>
+      <span className="stay-detail">
+        {leg('Drop-off', car.dropoff_date, car.dropoff_time, car.dropoff_location || car.pickup_location)}
+      </span>
+      <span className="meta">
+        {[car.driver, away >= 0 ? formatCountdown(away) : null].filter(Boolean).join(' · ')}
+      </span>
+      <MapsLink url={car.maps_url} query={car.pickup_location} label="Pick-up in Maps" />
+    </div>
+  )
+}
+
+/* Accent is for times, links, and one primary action per screen — this is the
+   link. An exact pin wins when someone has pasted one; otherwise a maps search
+   on the name and address, which resolves for a named apartment or an airport
+   desk and is worth more than no link at all. */
+function MapsLink({ url, query, label = 'Open in Maps' }) {
+  const href =
+    url || (query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null)
+  if (!href) return null
+  return (
+    <a className="card-link" href={href} target="_blank" rel="noreferrer">
+      {label}
+    </a>
+  )
+}
+
+/* Both legs, in full. The old version made the return a footnote — route and
+   times on the outbound, a bare flight number and date underneath — which reads
+   as a missing return rather than a quieter one. Eleven nights is long enough
+   that the way home is not a detail. */
+function FlightsCard({ flights, today }) {
+  const list = [...(flights ?? [])].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+  const next = list.find(f => f.date >= today)
+  if (!list.length) return null
+
+  return (
+    <div className="card card--sand" style={{ padding: '16px 18px', gap: 14 }}>
+      {list.map(flight => {
+        const away = daysBetween(today, flight.date)
+        const when = [
+          formatDay(flight.date),
+          `${flight.departure_time} – ${flight.arrival_time}`,
+          flight.id === next?.id ? formatCountdown(away) : flight.date < today ? 'flown' : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+
+        return (
+          <div key={flight.id} style={{ display: 'grid', gap: 4 }}>
+            <div className="flight-row">
+              <span className="flight-route">
+                {flight.from_airport} → {flight.to_airport}
+              </span>
+              <span className="flight-no">{flight.flight_number}</span>
+            </div>
+            <span className="flight-when">{when}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
