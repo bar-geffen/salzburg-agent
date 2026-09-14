@@ -1436,13 +1436,24 @@
   gap: 12px;
   min-height: 44px;
   cursor: pointer;
+  /* Not decoration: it's the containing block for the absolutely positioned
+     input below. Without it the input resolves against the initial containing
+     block — nothing else in the app is positioned — so it stops moving with
+     .scroll, and ticking a box halfway down the list scrolled the whole 100dvh
+     .app off the window as the browser chased the focused input. */
+  position: relative;
 }
 
 /* The only checkbox in the app. The input itself is invisible but present — it
    keeps the native keyboard behaviour and the accessibility role, and .pack-box
-   beside it is what's actually drawn. */
+   beside it is what's actually drawn. Pinned over .pack-box rather than left at
+   its static position, so focusing it is a scroll no-op and the native focus
+   ring, if it ever shows, lands on the thing you can see. */
 .pack-check input {
   position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
   width: 26px;
   height: 26px;
   opacity: 0;
