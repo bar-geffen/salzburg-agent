@@ -376,7 +376,10 @@ that kept auth out of the design-system PR in session 1.
 
 - **Supabase realtime.** The focus refetch plus the fix in PR 5 covers the realistic
   two-phones case. Revisit after the trip if it actually annoyed you.
-- **Weather.** Still deferred; the prompt slot stays.
+- **Weather.** No weather API, still deferred. The prompt slot stays, but it no
+  longer says "not yet available": web search reaches forecasts, so the slot now
+  tells the agent to look one up when the forecast changes the answer and to say
+  when it did. A dedicated feed would buy a card on the Agenda, not the fact.
 - **Per-user data isolation.** Shared trip, shared everything. Auth is a gate, not a
   partition.
 - **Structured day plans (the old PR 2).** Day planning works conversationally today.

@@ -43,7 +43,12 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
 - `api/chat.js` is a **thin pass-through**. It returns Claude's raw content blocks
   and `stop_reason`; it does not extract text and does not run the tool loop. The
   client owns the loop, because the tools write to Supabase and the client already
-  has a session there.
+  has a session there. It forwards `tools` untouched, which is how the server-side
+  `web_search` tool reaches Claude without the server knowing anything about it.
+  `vercel.json` caps the function at 60s (`maxDuration`) because a searching turn
+  is slower than a talking one; the client's 90s timeout sits outside that, so a
+  real overrun comes back as a 504 the client turns into a sentence rather than a
+  JSON parse error.
 - `src/lib/build-system-prompt.js` assembles the system prompt from eight tables in
   parallel. Adding a table means adding a section here too.
 - `src/lib/tools.js` holds the tool definitions *and* their executors. The tools
@@ -51,6 +56,26 @@ App.jsx  ──▶ supabase.insert(messages)          save the user's turn
   `stop_reason === 'tool_use'` until the agent stops calling them. Don't use
   `strict: true` on a tool; structured outputs aren't supported on the model in
   `api/chat.js`.
+- **`SERVER_TOOLS` is the one thing in `tools.js` that `tools.js` can't run.**
+  `web_search` is Anthropic's server tool: the API performs the search mid-turn
+  and returns `server_tool_use` and `web_search_tool_result` blocks inside the
+  same assistant message, so it has no executor and never reaches
+  `executeTool`. It's pinned to the plain `web_search_20250305` variant rather
+  than the newer filtering one, which was measured and lost — see the comment
+  above `SERVER_TOOLS`; the short version is that the newer one returns no
+  citations, and citations are why the agent has the web. It's a separate export for exactly that reason — a definition
+  sitting in `TOOLS` with nothing behind it reads as one the loop could run.
+  `postChat` sends `[...TOOLS, ...SERVER_TOOLS]`; `generateTitle` sends no tools
+  at all, which is what keeps a one-line naming call from searching the web.
+  Two consequences in the loop: **`stop_reason === 'pause_turn'`** means a long
+  search turn came back unfinished and is resumed by appending the partial
+  assistant content and going round again (it costs an iteration, which is what
+  bounds it), and **citations are collected into a Sources list** appended to
+  the reply's markdown by `sourcesFrom()`. They go into `content`, not
+  `content_json`, so they survive a reload — a researched answer whose sources
+  you can't open is one you have to research again. `Chat.jsx` renders every
+  markdown link with `target="_blank"`, because losing the thread is the cost of
+  tapping a source in an app with no back button.
 - **An executor returns `{ modelText, userLine }`, not a string.** `modelText` is
   the `tool_result` the model reads; `userLine` is one short line the chat renders
   under the reply. The executor writes both because only it knows what the write

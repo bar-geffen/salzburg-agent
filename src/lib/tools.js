@@ -446,6 +446,55 @@ Quote the line as it appears in your context. Matching ignores case and punctuat
   },
 ]
 
+// The one tool in this file that this file cannot run.
+//
+// web_search is a *server* tool: Anthropic executes the search between
+// generating and replying, and hands back `server_tool_use` and
+// `web_search_tool_result` blocks inside the same assistant turn. It has no
+// entry in EXECUTORS and never reaches executeTool — which is exactly why it
+// is a separate export rather than a fourteenth member of TOOLS. A definition
+// sitting in TOOLS with no executor behind it reads as one the loop could run,
+// and the next person to add a tool would copy it.
+//
+// The consequence for App.jsx is `pause_turn`: a turn that spends a while
+// searching can come back unfinished, and is resumed by sending it straight
+// back. Everything else about the loop is unchanged.
+//
+// The type is the older, plainer variant on purpose. `web_search_20260209`
+// wraps the search in code execution so the model can filter results
+// programmatically, and measured against this app that was worse on both
+// things that matter: it cost four server round trips instead of one (22s vs
+// 16s on a single question, and a turn researching four places has a 60s
+// function cap to fit inside), and it returned *no citations at all* — the
+// results are read inside the sandbox, so nothing anchors a claim to a page.
+// Sources are the whole point of giving this agent the web. Filtering ten
+// results is not a problem it has.
+export const SERVER_TOOLS = [
+  {
+    type: 'web_search_20250305',
+    name: 'web_search',
+    // Enough for "look into the four places she mentioned"; low enough that one
+    // vague question can't turn into a dozen billed searches. This is per API
+    // request, and a turn may make several — MAX_TOOL_ITERATIONS is the other
+    // half of the bound. It is also a latency ceiling: four searches measured
+    // 46s against the 60s function cap in vercel.json, which is why the prompt
+    // tells the agent to research about four places per reply and offer the
+    // rest, rather than trying nine and timing out with nothing to show.
+    max_uses: 5,
+    // Every question this agent is asked is about one valley. Without this the
+    // search is localised to wherever the request appears to come from, which
+    // is Israel eleven months of the year and a Vercel region the rest of the
+    // time — neither of which is where they're going.
+    user_location: {
+      type: 'approximate',
+      city: 'Salzburg',
+      region: 'Salzburg',
+      country: 'AT',
+      timezone: 'Europe/Vienna',
+    },
+  },
+]
+
 // Each executor returns two strings:
 //
 //   modelText — the tool_result the model reads, so it knows what happened and

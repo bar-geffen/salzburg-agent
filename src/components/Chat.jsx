@@ -198,6 +198,15 @@ export default function Chat({
   )
 }
 
+// Agent replies now carry links out to the web — the Sources list under a
+// researched answer, and whatever it cites inline. Tapping one must not replace
+// the chat: this is a phone app with no back button of its own, and the thread
+// you were reading is the thing you'd lose. rel is the pair that always goes
+// with target="_blank".
+const MD_COMPONENTS = {
+  a: props => <a {...props} target="_blank" rel="noreferrer noopener" />,
+}
+
 // Markdown folds a lone newline into a space, so the two-line message someone
 // typed as two lines came back as one. Two trailing spaces is markdown's own
 // hard break. List items and headings already break on their own — this is for
@@ -215,7 +224,9 @@ function UserMessage({ msg }) {
         {msg.sender}
       </span>
       <div className="msg-body">
-        <ReactMarkdown>{preserveLineBreaks(msg.content)}</ReactMarkdown>
+        <ReactMarkdown components={MD_COMPONENTS}>
+          {preserveLineBreaks(msg.content)}
+        </ReactMarkdown>
       </div>
     </div>
   )
@@ -233,9 +244,9 @@ function AgentMessage({ msg }) {
             than being dropped, because then nothing would identify the speaker. */}
         <div className={`agent-head${lead ? '' : ' agent-head--bare'}`}>
           <Icon name="sparkle" size={16} />
-          {lead && <ReactMarkdown>{lead}</ReactMarkdown>}
+          {lead && <ReactMarkdown components={MD_COMPONENTS}>{lead}</ReactMarkdown>}
         </div>
-        <ReactMarkdown>{rest}</ReactMarkdown>
+        <ReactMarkdown components={MD_COMPONENTS}>{rest}</ReactMarkdown>
       </div>
       <Saves lines={savesOf(msg)} />
     </div>
