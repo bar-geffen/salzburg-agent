@@ -12,7 +12,7 @@ import {
   setSessionTitle as saveSessionTitle,
   touchSession,
 } from './lib/chat-sessions'
-import { TOOLS, executeTool } from './lib/tools'
+import { SERVER_TOOLS, TOOLS, executeTool } from './lib/tools'
 import { useTripData } from './lib/use-trip-data'
 import { todayISO, tripSubtitle } from './lib/dates'
 import Icon from './components/Icon'
@@ -26,12 +26,17 @@ import './App.css'
 
 // Each round trip is one API call, so this bounds cost and latency as much as it
 // prevents a runaway loop. Five is generous: a turn that saves a recommendation,
-// logs the day, and replies uses two.
+// logs the day, and replies uses two. Web searches don't each cost an iteration
+// — the server runs them mid-turn — but a paused turn does, which is what keeps
+// a resume from being unbounded.
 const MAX_TOOL_ITERATIONS = 5
 
 // A hung request would otherwise spin forever — the fetch has no default
-// timeout, and hotel wifi drops connections without closing them.
-const REQUEST_TIMEOUT_MS = 60_000
+// timeout, and hotel wifi drops connections without closing them. Long enough
+// to cover a turn that runs several web searches before it starts speaking;
+// vercel.json caps the function itself lower, so a real hang comes back as an
+// error from the server rather than as this abort.
+const REQUEST_TIMEOUT_MS = 90_000
 
 const TITLES = { chat: 'Salzburg', agenda: 'Agenda', saved: 'Saved', packing: 'Packing' }
 
@@ -327,7 +332,21 @@ function TripApp({ sender }) {
       for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
         const response = await postChat({ systemPrompt, messages: apiMessages })
 
-        const data = await response.json()
+        // A body that isn't JSON didn't come from api/chat.js at all. The one
+        // that happens is a 504 from Vercel's gateway when a turn spends longer
+        // searching than the function's maxDuration allows, and it arrives as
+        // HTML — parsing it blind puts "Unexpected token '<'" on the screen,
+        // which is the blank-page failure in a different costume.
+        let data
+        try {
+          data = await response.json()
+        } catch {
+          throw new Error(
+            response.status === 504
+              ? 'That took too long — I was probably still searching the web. Try asking about one thing at a time.'
+              : `The server sent something I couldn't read (${response.status}).`,
+          )
+        }
         if (!response.ok) throw new Error(data?.error || `Request failed (${response.status})`)
 
         finalBlocks = data.content ?? []
@@ -341,6 +360,15 @@ function TripApp({ sender }) {
           .join('\n\n')
           .trim()
         if (spoken) spokenText.push(spoken)
+
+        // A turn that spends a while on web searches can come back unfinished.
+        // Resuming it is the same request with the partial turn appended —
+        // including its server_tool_use and web_search_tool_result blocks, which
+        // are what the model reads its own searches back from.
+        if (data.stop_reason === 'pause_turn') {
+          apiMessages.push({ role: 'assistant', content: finalBlocks })
+          continue
+        }
 
         if (data.stop_reason !== 'tool_use') {
           hitIterationCap = false
@@ -385,9 +413,16 @@ function TripApp({ sender }) {
 
       if (hitIterationCap) {
         spokenText.push(
-          `_(I stopped after ${MAX_TOOL_ITERATIONS} rounds of saving things. Anything already saved is safe — ask me to carry on if something's missing.)_`,
+          `_(I stopped after ${MAX_TOOL_ITERATIONS} rounds of searching and saving. Anything already saved is safe — ask me to carry on if something's missing.)_`,
         )
       }
+
+      // Appended to the text rather than rendered beside it, so the links land
+      // in `content` and survive a reload — content_json is for display only,
+      // and a researched answer you can't check is one you have to research
+      // again.
+      const sources = sourcesFrom(allBlocks)
+      if (sources.length) spokenText.push(`**Sources**\n${sources.join('\n')}`)
 
       const reply = spokenText.join('\n\n').trim()
       if (!reply) throw new Error('The agent returned an empty response.')
@@ -719,6 +754,33 @@ function NotOnThisTrip({ email }) {
   )
 }
 
+/**
+ * Every page the answer actually cited, as markdown links.
+ *
+ * Web search results reach the reply as citations hanging off the text blocks,
+ * and nothing in `content` would carry them otherwise — the travellers would
+ * get opening hours with no way to tell whether they came from the café's own
+ * page or from the model's memory of 2024. Deduplicated by URL, because one
+ * hours page gets cited by three separate sentences.
+ *
+ * Insertion order is doing real work here: citations arrive in the order the
+ * reply makes its claims, so a four-place answer produces a list already
+ * grouped by place. That's also why it isn't truncated — cutting the tail
+ * would take the sources off the last place discussed rather than trimming
+ * each evenly.
+ */
+function sourcesFrom(blocks) {
+  const seen = new Map()
+  for (const block of blocks) {
+    if (block?.type !== 'text') continue
+    for (const cite of block.citations ?? []) {
+      if (!cite?.url || seen.has(cite.url)) continue
+      seen.set(cite.url, (cite.title || cite.url).trim())
+    }
+  }
+  return [...seen].map(([url, title]) => `- [${title}](${url})`)
+}
+
 /** POST to /api/chat with a hard timeout. */
 async function postChat(body) {
   const controller = new AbortController()
@@ -727,7 +789,7 @@ async function postChat(body) {
     return await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, tools: TOOLS }),
+      body: JSON.stringify({ ...body, tools: [...TOOLS, ...SERVER_TOOLS] }),
       signal: controller.signal,
     })
   } finally {
